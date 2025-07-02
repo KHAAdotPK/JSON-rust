@@ -1,0 +1,27 @@
+{
+    "name": "test.png",
+    "chunks": [
+        {
+            "type": "ihdr",
+            "data": [
+                {
+                    "width": 1300,
+                    "height": 1300,
+                    "bit_depth": 8,
+                    "color_type": "rgb",
+                    "compression_method": "deflate",
+                    "filter_method": "adaptive",
+                    "interlace_method": "none"
+                }
+            ]
+        },
+        {
+            "type": "idat",
+            "data": [
+                {
+                    "image_data": [255, 0, 0]
+                }
+            ]
+        }
+    ]
+}
