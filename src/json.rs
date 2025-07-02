@@ -11,13 +11,24 @@ use crate::file_content::FileContent;
 use crate::constants::{JSON_OPENIING_BRACE, JSON_CLOSING_BRACE, JSON_OPENING_BRACE_REG_EXPR_PATTERN, JSON_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_KEY_REG_EXPR_PATTERN, JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN, JSON_QUOTED_CONTENT_PATTERN, JSON_VALUE_TYPE_NUMERIC_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING};
 use crate::json_object::{ValueType, Key, JsonKeyPtr, JsonObject};
 
+/// Recursively parses a JSON object that may span multiple lines.
+///
+/// This function processes a subset of lines from the file content, identified by start and end line numbers.
+/// It parses key-value pairs within the object, handling nested objects and arrays by calling the
+/// appropriate processing functions recursively.
+///
+/// # Arguments
+/// * `l1` - The starting line number (index) of the multi-line object block.
+/// * `l2` - The ending line number (index) of the multi-line object block.
+/// * `file_content` - A reference to the `FileContent` struct containing the source text.
+/// * `key` - A mutable reference to the parent `Key` to which the parsed nested keys of this object will be added.
 pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileContent, key: &mut Key) {
 
     if l2 == 0 || ((l1 + 1) >= (l2 - 1)) {
         
     }
 
-    println! ("In the process_multiline_json_object function, l1: {}, l2: {}", l1, l2);
+    /*println! ("In the process_multiline_json_object function, l1: {}, l2: {}", l1, l2);*/
 
     let mut starting_line_number: usize = 0; 
     let mut ending_line_number: usize = 0;
@@ -53,7 +64,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
 
             if opening_brace_reg_expr.is_match(line) {
                             
-                println! ("--> Found opening brace: {} - {}", line, i);
+                /*println! ("--> Found opening brace: {} - {}", line, i);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 {
 
@@ -67,7 +78,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
 
             } else if closing_brace_reg_expr.is_match(line) {
             
-                println! ("--> Found closing brace: {} - {}", line, i);
+                /*println! ("--> Found closing brace: {} - {}", line, i);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count > 0 {
 
@@ -97,7 +108,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                     captures.get(0).map(|key_match| {
                         if let Some(quoted_content_match) = quoted_content_regex.captures(key_match.as_str()) {
                             let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
-                            println!("Found quoted string key: ----> {}", un_quoted_string);
+                            /*println!("Found quoted string key: ----> {}", un_quoted_string);*/
                             current_key_name = Some(un_quoted_string.to_string());
                         }                    
                     });
@@ -128,7 +139,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                             if let Some (quoted_content_match) = quoted_content_regex.captures( value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
 
-                                println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png
+                                /*println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png*/
 
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
@@ -144,7 +155,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
 
                     if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
                     
-                        println! ("Found numeric value: {}", captures.get(1).map_or("", |m| m.as_str()));
+                        /*println! ("Found numeric value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
 
                         // Create complete key-value pair for numeric type
                         if let Some(key_name) = current_key_name.take() {
@@ -188,7 +199,7 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                             if let Some (quoted_content_match) = single_line_json_array_type_value_string_regex.captures( value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
                         
-                                println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png
+                                /*println!("Found quoted string value: {}", un_quoted_string);*/ // Prints: test.png
                         
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
@@ -241,13 +252,24 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
     }
 }
 
+/// Recursively parses a JSON array that may span multiple lines.
+///
+/// This function processes a subset of lines from the file content, identified by start and end line numbers.
+/// It parses elements within the array, handling nested objects, strings, and numbers. Nested objects
+/// are processed by recursively calling `process_multiline_json_object`.
+///
+/// # Arguments
+/// * `l1` - The starting line number (index) of the multi-line array block.
+/// * `l2` - The ending line number (index) of the multi-line array block.
+/// * `file_content` - A reference to the `FileContent` struct containing the source text.
+/// * `key` - A mutable reference to the parent `Key` (which represents the array) to which the parsed elements will be added as nested keys.
 pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileContent, key: &mut Key) {
 
     if l2 == 0 || ((l1 + 1) >= (l2 - 1)) {
         
     }
 
-    println! ("In the process_multiline_json_array function, l1: {}, l2: {}", l1, l2);
+    /*println! ("In the process_multiline_json_array function, l1: {}, l2: {}", l1, l2);*/
 
     let mut starting_line_number: usize = 0; 
     let mut ending_line_number: usize = 0;
@@ -297,7 +319,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
 
             if opening_brace_reg_expr.is_match(line) {
                             
-                println! ("--> Found opening brace: {} - {}", line, i);
+                /*println! ("--> Found opening brace: {} - {}", line, i);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 {
 
@@ -311,7 +333,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
 
             } else if closing_brace_reg_expr.is_match(line) {
             
-                println! ("--> Found closing brace: {} - {}", line, i);
+                /*println! ("--> Found closing brace: {} - {}", line, i);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count > 0 {
 
@@ -346,7 +368,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
                     captures.get(0).map(|key_match| {
                         if let Some(quoted_content_match) = quoted_content_regex.captures(key_match.as_str()) {
                             let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
-                            println!("Found quoted string key: ----> {}", un_quoted_string);
+                            /*println!("Found quoted string key: ----> {}", un_quoted_string);*/
                             current_key_name = Some(un_quoted_string.to_string());
                         }                    
                     });
@@ -390,7 +412,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
                             if let Some (quoted_content_match) = single_line_json_array_type_value_string_regex.captures( value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
                         
-                                println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png
+                                /*println!("Found quoted string value: {}", un_quoted_string);*/ // Prints: test.png
                         
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
@@ -413,7 +435,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
                             if let Some (quoted_content_match) = quoted_content_regex.captures( value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
 
-                                println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png
+                                /*println!("Found quoted string value: {}", un_quoted_string);*/ // Prints: test.png
 
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
@@ -429,7 +451,7 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
 
                     if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
                     
-                        println! ("Found numeric value: {}", captures.get(1).map_or("", |m| m.as_str()));
+                        /*println! ("Found numeric value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
 
                         // Create complete key-value pair for numeric type
                         if let Some(key_name) = current_key_name.take() {
@@ -480,7 +502,20 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
     }    
 }
 
-pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
+/// The main entry point for parsing a JSON file.
+///
+/// This function reads a file, iterates through its lines, and orchestrates the parsing process.
+/// It identifies top-level key-value pairs and delegates the parsing of complex, multi-line
+/// structures (objects and arrays) to the appropriate helper functions.
+///
+/// # Arguments
+/// * `file_name` - A string slice that holds the path to the JSON file to be parsed.
+///
+/// # Returns
+/// * `Ok(Some(Box<JsonObject>))` if parsing is successful, containing the root `JsonObject`.
+/// * `Ok(None)` if the file is empty or does not form a valid object (though current implementation always returns a `JsonObject`).
+/// * `Err(io::Error)` if the file cannot be read.
+pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
     
     // Counter when it is zero means it is not set
     let mut json_multi_line_array_opening_closing_bracket_count: usize = 0;
@@ -489,7 +524,7 @@ pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
     let mut starting_line_number: usize = 0;
     let mut ending_line_number: usize = 0;
 
-    let mut file_content = FileContent::from_file("src/png.json")?;
+    let mut file_content = FileContent::from_file(file_name)?;
     
     let key_regex = Regex::new(JSON_KEY_REG_EXPR_PATTERN).unwrap();
     let value_string_type_regex = Regex::new(JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN).unwrap();
@@ -520,7 +555,7 @@ pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
                     captures.get(0).map(|key_match| {
                         if let Some(quoted_content_match) = quoted_content_regex.captures(key_match.as_str()) {
                             let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
-                            println!("Found quoted string key: ----> {}", un_quoted_string);
+                            /*println!("Found quoted string key: ----> {}", un_quoted_string);*/
                             current_key_name = Some(un_quoted_string.to_string());
                         }                    
                     });
@@ -532,7 +567,7 @@ pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
                         captures.get(0).map(|value_match| {                        
                             if let Some(quoted_content_match) = quoted_content_regex.captures(value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
-                                println!("Found quoted string value: {}", un_quoted_string);
+                                /*println!("Found quoted string value: {}", un_quoted_string);*/
                                 
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
@@ -594,7 +629,7 @@ pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
                 }
                 
             } else if opening_brace_reg_expr.is_match(line) {
-                println!("--> Found opening brace: {}", line);
+                /*println!("--> Found opening brace: {}", line);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 {
                     if starting_line_number == 0 {
@@ -604,7 +639,7 @@ pub fn json_main() -> Result<Option<Box<JsonObject>>, io::Error> {
                 }
 
             } else if closing_brace_reg_expr.is_match(line) {
-                println!("--> Found closing brace: {}", line);
+                /*println!("--> Found closing brace: {}", line);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count > 0 {
                     json_multi_line_object_opening_closing_brace_count -= 1;

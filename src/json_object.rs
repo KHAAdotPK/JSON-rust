@@ -112,6 +112,11 @@ impl Key {
         self.value = value;
     }
 
+    /// Adds a key to the nested structure pointed to by `ptr`.
+    /// This is used for creating nested objects or arrays within a key.
+    ///
+    /// # Arguments
+    /// * `key` - The boxed `Key` to add to the nested list.
     pub fn add_key(&mut self, key: Box<Key>) {    
         match &mut self.ptr {
             None => {
@@ -219,6 +224,26 @@ impl JsonObject {
                 // Increment the node counter
                 self.n += 1;
             }
+        }
+    }
+
+    /// Prints a formatted representation of the JSON object to the console.
+    /// This method is useful for debugging and visualizing the structure of the JSON data.
+    /// It recursively prints nested objects and arrays with indentation.
+    pub fn pretty_print(&self) {
+        
+        fn print_key(key: &Box<Key>, indent: usize) {
+            println!("{}{}: {:?}", " ".repeat(indent), key.get_name(), key.get_value_type());
+            if let Some(ref nested) = key.ptr {
+                print_key(nested, indent + 4);
+            }
+            if let Some(ref next) = key.next {
+                print_key(next, indent);
+            }
+        }
+
+        if let Some(ref key) = self.ptr {
+            print_key(key, 0);
         }
     }
 
