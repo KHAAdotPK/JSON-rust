@@ -425,5 +425,5 @@ JSON object: Some(
 
 ## 📜 License
 
-MIT License — Free to use, modify, and distribute with attribution.
+This project is governed by a license, the details of which can be located in the accompanying file named 'LICENSE.' Please refer to this file for comprehensive information.
 
