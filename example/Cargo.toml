@@ -1,0 +1,10 @@
+[package]
+name = "json2png"
+version = "0.1.0"
+edition = "2021"
+description = "Example application demonstrating JSON-rust crate usage"
+
+[dependencies]
+json-rust = { path = "lib/JSON-rust" }  # Local path during development
+# json-rust = "0.1.0"                     # Use this when published to crates.io
+
