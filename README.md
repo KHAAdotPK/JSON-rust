@@ -1,6 +1,6 @@
 # JSON-rust
 
-A lightweight, handwritten JSON parsing library written in pure Rust — **without using any third-party JSON crates**.  
+A lightweight, JSON parsing library written in pure Rust — **without using any third-party JSON crates**.  
 This library uses a custom recursive linked-list data structure to represent JSON objects and arrays, providing full control over structure, memory, and traversal.
 
 ---
@@ -86,13 +86,34 @@ src/
 ```
 ---
 
-## 🚀 Usage
+## 🚀 Usage of JSON-rust crate
+For example say you are developing a program that needs to parse a JSON file and extract some information from it. You can use the JSON-rust crate to parse the JSON file and extract the information you need. The directory structure of program which uses JSON-rust crate is as follows:
+
+```
+json2png/
+    ├── lib/
+    │   ├── JSON-rust/                 # JSON-rust crate
+    │   │   ├── src/
+    │   │   └── Cargo.toml             # Cargo.toml file
+    │   └── src/
+    │       ├── main.rs                # Main module    
+    │       └── png.json               # JSON file, input file which will be parsed
+    └── Cargo.toml                     # Cargo.toml file
+```
 
 ### 1. Clone the repository
 
 ```bash
+cd json2png/lib
 git clone https://github.com/yourusername/json-rust.git
-cd json-rust
+cd ..
+```
+
+### 2. Add the JSON-rust crate to your project's json2png/Cargo.toml file
+
+```toml
+[dependencies]
+json-rust = { path = "lib/JSON-rust" }
 ```
 
 ### 2. Build the project
@@ -100,26 +121,11 @@ cd json-rust
 ```bash
 cargo build
 ```
-
-### 3. Run the parser
-
-```bash
-cargo run path/to/your.json
-```
-
-Example:
-
-```bash
-cargo run test.json
-```
-
-The output will print the parsed structure using Rust's `Debug` format.
-
 ---
 
-## 📄 Example Input
+### 📄 Example Input
 
-Given the following `test.json`:
+Given the following `png.json`:
 
 ```json
 {
@@ -151,7 +157,70 @@ Given the following `test.json`:
 }
 ```
 
-The program outputs:
+### Write the code to parse the JSON file
+
+```Rust
+use std::{env, io};
+
+// Choose one of the two following statements
+/*
+     1. Either this. It is a wildcard import which brings all items from the crate into scope.
+     This is generally discouraged as it can lead to naming conflicts.
+ */
+//use json_rust::*;
+/*
+     2. Or this one...
+     This is a more explicit import which only brings the specific items we need into scope.
+     This is generally recommended as it provides better control and clarity.
+ */
+use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::json_main};
+
+fn main() -> Result<(), io::Error> {
+
+    // Get current directory and build path
+    let current_dir = env::current_dir()?;
+    let json_path = current_dir.join("src").join("png.json"); 
+        
+    let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path.to_str().unwrap());
+
+    /*
+    match json_object {
+
+      /*Ok(json_object) => println!("JSON object: {:#?}", json_object),*/
+      Ok(json_object) => {
+
+          println!("JSON object: {:#?}", json_object);     
+      },
+
+      Err(e) => println!("Error: {}", e),
+    }
+     */
+      
+   match json_object {
+
+       Ok(Some(obj)) => {
+
+            obj.pretty_print();
+
+            Ok(())
+       },
+       Ok(None) => {
+
+            println!("No JSON object returned."); 
+
+            Ok(())
+       },
+       Err(e) => {
+
+            println!("Error: {}", e); 
+
+            Ok(())
+       },
+   }   
+}
+```
+
+### Output
 
 ```text
 JSON object: Some(
@@ -341,25 +410,6 @@ JSON object: Some(
     },
 )
 ```
-
-## 📚 Learning Goals & Motivation
-
-This project was created as a learning exercise to:
-
-- Deeply understand JSON parsing
-- Reinforce concepts of recursive data structures
-- Practice Rust memory safety with ownership and borrowing
-- Avoid using existing crates like `serde_json`
-
-The entire parser — including the tokenizer, object model, and recursion — is built by hand, using just the standard Rust library and `regex`.
-
----
-
-## 🧪 Testing
-
-Manual testing is done by providing various JSON files and checking output.  
-You can easily write integration tests inside `tests/` or extend the project with a proper test suite using `cargo test`.
-
 ---
 
 ## 🔧 Future Improvements
@@ -370,14 +420,6 @@ You can easily write integration tests inside `tests/` or extend the project wit
 - [ ] Add `from_str()` constructor for direct parsing
 - [ ] Performance improvements (switch to Vecs?)
 - [ ] Optional Serde interop
-
----
-
-## 👨‍💻 Author
-
-Created by [Q@khaa.pk](mailto:khaa@pk)  
-Copyright © 2025  
-All rights reserved.
 
 ---
 
