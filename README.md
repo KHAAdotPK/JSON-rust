@@ -105,7 +105,7 @@ json2png/
 
 ```bash
 cd json2png/lib
-git clone https://github.com/yourusername/json-rust.git
+git clone https://github.com/KHAAdotPK/JSON-rust.git
 cd ..
 ```
 

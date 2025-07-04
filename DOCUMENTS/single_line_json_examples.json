@@ -1,0 +1,40 @@
+{
+    "name": "test.png",
+    "is_valid": true,
+    "dimensions": {"width": 1300, "height": 1300, "aspect_ratio": 1.0},
+    "metadata": null,
+    "chunks": [
+        {
+            "type": "ihdr",
+            "required": true,
+            "config": {"compression": "deflate", "filter": "adaptive", "interlace": false},
+            "data": [
+                {
+                    "width": 1300,
+                    "height": 1300,
+                    "bit_depth": 8,
+                    "color_type": "rgb",
+                    "compression_method": "deflate",
+                    "filter_method": "adaptive",
+                    "interlace_method": "none",
+                    "has_transparency": false,
+                    "palette": null,
+                    "color_info": {"red": 255, "green": 0, "blue": 0, "alpha": null}
+                }
+            ]
+        },
+        {
+            "type": "idat",
+            "settings": {"compressed": true, "verified": false, "size": 1024},
+            "data": [
+                {
+                    "image_data": [255, 0, 0],
+                    "is_complete": true,
+                    "stats": {"bytes": 1024, "chunks": 1, "errors": 0}
+                }
+            ]
+        }
+    ],
+    "file_info": {"created": "2025-01-01", "modified": null, "size": 2048},
+    "has_gamma_correction": false
+}
