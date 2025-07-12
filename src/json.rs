@@ -8,8 +8,82 @@ use std::io;
 use regex::Regex;
 
 use crate::file_content::FileContent;
-use crate::constants::{JSON_OPENIING_BRACE, JSON_CLOSING_BRACE, JSON_OPENING_BRACE_REG_EXPR_PATTERN, JSON_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_KEY_REG_EXPR_PATTERN, JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN, JSON_QUOTED_CONTENT_PATTERN, JSON_VALUE_TYPE_NUMERIC_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING};
+use crate::constants::{JSON_OPENIING_BRACE, JSON_CLOSING_BRACE, JSON_OPENING_BRACE_REG_EXPR_PATTERN, JSON_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_KEY_REG_EXPR_PATTERN, JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN, JSON_QUOTED_CONTENT_PATTERN, JSON_VALUE_TYPE_NUMERIC_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING, JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN, JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN};
 use crate::json_object::{ValueType, Key, JsonKeyPtr, JsonObject};
+
+pub fn process_singleline_json_object(line: &str, key: &mut Key) {
+
+    println!("--> Found opening brace: {}", line);
+    
+    // You have line of key/value pairs
+    // You need to process each key/value pair, iterate through the line
+    // Iterate through the line in a way that you get each individual key/value pair
+    // A line could be...        
+    // "dimensions": {"width": 1300, "height": 1300, "aspect_ratio": 1.0, "has_transparency": false, "palette": null, "color_info": {"red": 255, "green": 0, "blue": 0, "alpha": null}, "image_data": [255, 0, 0]}
+
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    let mut line_of_peakable_chars = line.chars().peekable();
+
+    let mut key = String::new();
+    let mut value = String::new();
+
+    let mut start_of_key = false;
+    let mut colon_encountered = false;
+
+    // Value types 
+    let mut value_type_string_found = false;
+
+    while let Some(ch) = line_of_peakable_chars.next() {
+
+        if !colon_encountered {
+                    
+            if ch == '"' && !start_of_key && !colon_encountered {
+            
+                start_of_key = true;
+            } else if ch == '"' && start_of_key && !colon_encountered {
+
+                start_of_key = false;            
+            } else if ch == ':' && !start_of_key && !colon_encountered {
+            
+                colon_encountered = true;
+            } else if start_of_key && !colon_encountered {
+
+                // Get the each individual char here and store it in string variable            
+                key.push(ch);
+            }
+        }
+
+        if colon_encountered { // We have the key, now found value type and gather it
+
+            if ch == '"' && !value_type_string_found {
+
+                value_type_string_found = true;
+            } else if value_type_string_found {
+                
+                if ch == '"' {
+
+                    value_type_string_found = false;
+                    colon_encountered = false;   
+                } else {
+                    value.push(ch);
+                }
+                            
+                if !colon_encountered {
+
+                    pairs.push((key.clone(), value.clone()));
+
+                    key.clear();
+                    value.clear();
+                }
+            }                
+        }
+    }   
+    
+    // Process the pairs
+    for (key, value) in pairs {
+        println!("Key: {}, Value: {}", key, value);
+    }
+}
 
 /// Recursively parses a JSON object that may span multiple lines.
 ///
@@ -534,6 +608,9 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
     let closing_square_bracket_of_json_array_type_regex = Regex::new(JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap();
     let opening_brace_reg_expr = Regex::new(JSON_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
     let closing_brace_reg_expr = Regex::new(JSON_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let value_opening_brace_reg_expr = Regex::new(JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let value_closing_brace_reg_expr = Regex::new(JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let single_line_object_type_key_name_with_opening_closing_brace_regex = Regex::new(JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN).unwrap();
 
     let mut json_object = JsonObject::new();
     
@@ -600,8 +677,21 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
                         }
                         json_multi_line_array_opening_closing_bracket_count += 1;
                     }
-                // Check for single line array    
-                } 
+                // Check for single line array 
+
+                // Check for single line object, match for the very first and very last brace
+                } else if value_opening_brace_reg_expr.is_match(line) && value_closing_brace_reg_expr.is_match(line) {                    
+                    if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count == 0 {                                                                        
+                        if let Some(key_name) = current_key_name.take() {                            
+                            if let Some(captures) = single_line_object_type_key_name_with_opening_closing_brace_regex.captures(line) {                                                                                                
+                                let mut key = Box::new(Key::new(key_name, ValueType::ObjectType, String::new()));
+                                process_singleline_json_object(captures.get(2).unwrap().as_str(), &mut key);                                
+                                json_object.add_key(key);
+                                key_value_pair_complete = true;
+                            }
+                        }
+                    }
+                }
 
             } else if closing_square_bracket_of_json_array_type_regex.is_match(line) {
                 if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count > 0 {
@@ -702,6 +792,10 @@ pub fn json_main_old() -> /*Result<(), io::Error>*/ /*Option<Box<JsonObject>>*/ 
 
     let opening_brace_reg_expr = Regex::new(JSON_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
     let closing_brace_reg_expr = Regex::new(JSON_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
+
+    let value_opening_brace_reg_expr = Regex::new(JSON_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let value_closing_brace_reg_expr = Regex::new(JSON_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
+
 
      /*file_content.count_lines();*/
 

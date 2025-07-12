@@ -4,17 +4,46 @@
     Written by, Q@khaa.pk
  */
 
+/*
+    The r at the beginning creates a raw string literal in Rust. Why Use Raw Strings for Regex?
+    Without Raw String (painful):
+    // You have to escape every backslash
+    let pattern = "\"([^\"]+)\"\\s*:\\s*\\{(.*)\\}\\s*,?\\s*$";
+    //             ^^     ^^    ^^      ^^    ^^        ^^
+    //             All these backslashes need to be doubled!
+    
+    With Raw String (clean):
+    // No escaping needed - what you see is what you get
+    let pattern = r#""([^"]+)"\s*:\s*\{(.*)\}\s*,?\s*$"#;
+    //            ^^                                   ^^
+    //            Raw string delimiters
+
+    -----------------------------------------------------------------------------------------------
+    The # Symbol:    
+    The # symbols in r#"..."# are raw string delimiters in Rust
+    The # symbols are delimiters that let you include quotes inside the raw string:
+    let pattern = r#""([^"]+)"\s*:\s*\{(.*)\}\s*,?\s*$"#;
+    //            ^^                                   ^^
+    //            Raw string delimiters
+
+    let pattern = r##"This can contain # and "quotes""##  // Multiple #'s if needed
+ */ 
+
 pub const JSON_OPENIING_BRACE: &str = "{";
 pub const JSON_CLOSING_BRACE: &str = "}";
 
 // Regular expression patterns for JSON structures
 // --------------------------------------------------
 
-pub const JSON_OPENING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\{\s*$";
-pub const JSON_CLOSING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\}\s*,?\s*$";
+pub const JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN: &str = r#""[^"]*"\s*:\s*[^{]*\{\s*(?:[^}]|$)"#; //r#":\s*\{\s*"#; //r"(?m)(?:^\s*\{\s*$|:\s*\{)"; // r#":\s*\{\s*\.*\s*"#;  // r"^\s*\{\s*$"; 
+pub const JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN: &str = r#"[^{}\s][^{}]*\}\s*(?:,\s*)?$"#; //r"(?m)(?:^\s*\}\s*$|\S.*\})"; // r#"\s*\.*\s*\}\s*"#;  // r"^\s*\}\s*,?\s*$";
+
+pub const JSON_OPENING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\{\s*$"; // Standalone opening brace
+pub const JSON_CLOSING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\}\s*,?\s*$"; // Standalone closing brace followed by optional comma
 
 pub const JSON_OPENING_BRACKET_REG_EXPR_PATTERN: &str = r"^\s*\[\s*$";
 pub const JSON_CLOSING_BRACKET_REG_EXPR_PATTERN: &str = r"^\s*\]\s*,?\s*$";
+
 
 // The # symbols in r#"..."# are raw string delimiters in Rust
 pub const JSON_KEY_REG_EXPR_PATTERN: &str = r#"^\s*"([^"\\]|\\.)*"\s*:\s*"#;
@@ -35,3 +64,7 @@ pub const JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE: &str = r#":\s*\[\s
 pub const JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE: &str = r"^\s*\]\s*,?\s*$";
 pub const JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN: &str =  r":\s*\[[^\]]*\]"; // r"^:\s*\[(\s*.*\s*)+\]\s*$"; // r"^\s*(\d+)\s*,?\s*$"
 pub const JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING: &str = r":\s*\[([^\]]*)\]";
+
+/* Process Single Line JSON Ibject, divide line in two groups; first group contains key and the other group contains value */  
+pub const JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN: &str = r#""([^"]+)"\s*:\s*\{(.*)\}\s*,?\s*$"#;
+
