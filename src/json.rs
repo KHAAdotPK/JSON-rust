@@ -24,17 +24,23 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
     let mut pairs: Vec<(String, String)> = Vec::new();
     let mut line_of_peakable_chars = line.chars().peekable();
 
-    let mut key = String::new();
-    let mut value = String::new();
+    let mut key_of_pair = String::new();
+    let mut value_of_pair = String::new();
 
     let mut start_of_key = false;
     let mut colon_encountered = false;
+    let mut opening_brace_encountered = false;
+    let mut opening_bracket_encountered = false;
+
+    let mut brace_count: usize = 0;
+    let mut bracket_count: usize = 0;
 
     // Value types 
     let mut value_type_string_found = false;
 
     while let Some(ch) = line_of_peakable_chars.next() {
 
+        // Retrieve the key
         if !colon_encountered {
                     
             if ch == '"' && !start_of_key && !colon_encountered {
@@ -49,36 +55,122 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
             } else if start_of_key && !colon_encountered {
 
                 // Get the each individual char here and store it in string variable            
-                key.push(ch);
+                key_of_pair.push(ch);
             }
-        }
+        // Retrieve the value    
+        } else if colon_encountered { // We have the key, now found value type and gather it
 
-        if colon_encountered { // We have the key, now found value type and gather it
-
-            if ch == '"' && !value_type_string_found {
+            // String value type
+            if !opening_brace_encountered && (ch == '"' && !value_type_string_found) {
 
                 value_type_string_found = true;
-            } else if value_type_string_found {
+
+            } else if !opening_brace_encountered && value_type_string_found {
                 
                 if ch == '"' {
 
                     value_type_string_found = false;
                     colon_encountered = false;   
                 } else {
-                    value.push(ch);
+                    value_of_pair.push(ch);
                 }
                             
                 if !colon_encountered {
 
-                    pairs.push((key.clone(), value.clone()));
+                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
 
-                    key.clear();
-                    value.clear();
+                    /**********************************/
+                    /* Place to add string value type */
+                    /**********************************/
+                    let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::StringType, value_of_pair.clone()));
+                    key.add_key(l_key);
+                   /******************************************************************************************************************/ 
+
+                    key_of_pair.clear();
+                    value_of_pair.clear();
                 }
-            }                
+            // JSON object value type    
+            } else if !value_type_string_found && ch == '{' {
+
+                //value.push(ch);
+
+                opening_brace_encountered = true;
+
+                brace_count += 1;
+
+            } else if opening_brace_encountered && ch == '}' {
+
+                //value.push(ch);
+
+                brace_count -= 1;
+
+                if brace_count == 0 {
+
+                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
+
+                    /****************************************/
+                    /* Place to add  JSON object value type */
+                    /****************************************/
+                    let mut l_key = Key::new(key_of_pair.clone(), ValueType::ObjectType, String::new());
+                    process_singleline_json_object(value_of_pair.clone().as_str(), &mut l_key);
+                    key.add_key(Box::new(l_key));
+                   /*****************************************************************************************************/
+
+                    key_of_pair.clear();
+                    value_of_pair.clear();
+
+                    opening_brace_encountered = false;
+                    colon_encountered = false;
+                }
+            } else if !value_type_string_found && opening_brace_encountered {
+
+                value_of_pair.push(ch);
+            // JSON array value type    
+            } else if !opening_brace_encountered && !value_type_string_found && ch == '[' {
+
+                //value.push(ch);
+
+                opening_bracket_encountered = true;
+
+                bracket_count += 1;
+            } else if opening_bracket_encountered && ch == ']' {
+
+                //value.push(ch);
+
+                bracket_count -= 1;
+
+                if bracket_count == 0 {
+
+                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
+
+                    key_of_pair.clear();
+                    value_of_pair.clear();
+
+                    opening_bracket_encountered = false;
+                    colon_encountered = false;
+                }
+            // JSON null value type and JSON numeric value type and JSON boolean value type
+            } else if opening_bracket_encountered && !opening_brace_encountered && !value_type_string_found {
+
+                value_of_pair.push(ch);                         
+            } else if !opening_bracket_encountered && !opening_brace_encountered && !value_type_string_found {
+
+                if ch != ',' {
+                    
+                    value_of_pair.push(ch);
+                } else {
+
+                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
+
+                    key_of_pair.clear();
+                    value_of_pair.clear(); 
+                    
+                    colon_encountered = false;
+                }
+            }
         }
-    }   
-    
+    }
+        
     // Process the pairs
     for (key, value) in pairs {
         println!("Key: {}, Value: {}", key, value);
