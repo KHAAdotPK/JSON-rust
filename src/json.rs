@@ -399,6 +399,10 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
     let closing_square_bracket_of_json_array_type_regex = Regex::new(JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap();
     let single_line_json_array_type_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN).unwrap();
     let single_line_json_array_type_value_string_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING).unwrap();
+    let single_line_object_type_key_name_with_opening_closing_brace_regex = Regex::new(JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN).unwrap();
+
+    let value_opening_brace_reg_expr = Regex::new(JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let value_closing_brace_reg_expr = Regex::new(JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
 
     let mut json_multi_line_array_opening_closing_bracket_count: usize = 0; 
     let mut json_multi_line_object_opening_closing_brace_count: usize = 0;
@@ -536,7 +540,18 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                 /* ************************************************************************************************************************** */    
                 // Has not yet implemented
                 /* ************************************************************************************************************************** */ 
-                
+                } else if value_opening_brace_reg_expr.is_match(line) && value_closing_brace_reg_expr.is_match(line) {                    
+                    if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count == 0 {                                                                        
+                        if let Some(key_name) = current_key_name.take() {                            
+                            if let Some(captures) = single_line_object_type_key_name_with_opening_closing_brace_regex.captures(line) {                                                                                                
+                                let mut l_key = Box::new(Key::new(key_name, ValueType::ObjectType, String::new()));
+                                process_singleline_json_object(captures.get(2).unwrap().as_str(), &mut l_key);                                
+                                key.add_key(l_key);
+                                key_value_pair_complete = true;                            
+                            }
+                            
+                        }
+                    }  
                 /* ************************************************************************************************************************** */                    
                 /*                         Check for single line Array, match for the very first and very last bracket                        */
                 /* ************************************************************************************************************************** */ 
@@ -695,6 +710,10 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
     let value_false_type_regex = Regex::new(JSON_VALUE_TYPE_FALSE_PATTERN).unwrap();
     let single_line_json_array_type_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN).unwrap();
     let single_line_json_array_type_value_string_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING).unwrap();
+    let single_line_object_type_key_name_with_opening_closing_brace_regex = Regex::new(JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN).unwrap();
+
+    let value_opening_brace_reg_expr = Regex::new(JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
+    let value_closing_brace_reg_expr = Regex::new(JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN).unwrap();
 
     let mut json_multi_line_array_opening_closing_bracket_count: usize = 0; 
     let mut json_multi_line_object_opening_closing_brace_count: usize = 0;
@@ -797,13 +816,23 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
 
                             starting_line_number = /*file_content.get_current_line_index()*/ i;
                         }                       
-                    }
+                    }                 
                 /* ************************************************************************************************************************** */                    
                 /*                         Check for single line object, match for the very first and very last brace                         */
                 /* ************************************************************************************************************************** */    
                 // Has not yet implemented
                 /* ************************************************************************************************************************** */ 
-                
+                } else if value_opening_brace_reg_expr.is_match(line) && value_closing_brace_reg_expr.is_match(line) {                    
+                    if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count == 0 {                                                                        
+                        if let Some(key_name) = current_key_name.take() {                            
+                            if let Some(captures) = single_line_object_type_key_name_with_opening_closing_brace_regex.captures(line) {                                                                                                
+                                let mut l_key = Box::new(Key::new(key_name, ValueType::ObjectType, String::new()));
+                                process_singleline_json_object(captures.get(2).unwrap().as_str(), &mut l_key);                                
+                                key.add_key(l_key);
+                                key_value_pair_complete = true;
+                            }
+                        }
+                    }                                   
                 /* ************************************************************************************************************************** */                    
                 /*                         Check for single line Array, match for the very first and very last bracket                        */
                 /* ************************************************************************************************************************** */ 
