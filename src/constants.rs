@@ -57,6 +57,10 @@ pub const JSON_VALUE_TYPE_NUMERIC_PATTERN: &str = r":\s*(-?(?:0|[1-9]\d*)(?:\.\d
 // Just capture any number from anywhere in the line
 pub const CAPTURE_NUMBER_PATTERN: &str = r"(-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?)";
 
+pub const JSON_VALUE_TYPE_NULL_PATTERN: &str = r#":\s*null\s*,?\s*$"#;
+pub const JSON_VALUE_TYPE_TRUE_PATTERN: &str = r#":\s*true\s*,?\s*$"#;
+pub const JSON_VALUE_TYPE_FALSE_PATTERN: &str = r#":\s*false\s*,?\s*$"#;
+
 // JSON array openinig square bracket
 // r"[\s.]*\[\s*$";
 //  r#"\s*"[^"]*":\s*\["#;

@@ -1,8 +1,12 @@
 {
     "name": "test.png",
+    "is_valid": true,
+    "dimensions": {"width": 1300, "height": 1300, "aspect_ratio": 1.0},    
+    "metadata": null,
     "chunks": [
         {
             "type": "ihdr",
+            "config": {"compression": "deflate", "filter": "adaptive", "interlace": false},
             "data": [
                 {
                     "width": 1300,

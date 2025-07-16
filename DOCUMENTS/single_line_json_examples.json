@@ -1,7 +1,7 @@
 {
     "name": "test.png",
     "is_valid": true,
-    "dimensions": {"width": 1300, "height": 1300, "aspect_ratio": 1.0},
+    "dimensions": {"width": 1300, "height": 1300, "aspect_ratio": 1.0},    
     "metadata": null,
     "chunks": [
         {
@@ -35,6 +35,6 @@
             ]
         }
     ],
-    "file_info": {"created": "2025-01-01", "modified": null, "size": 2048},
+    "file_info": {"created": "2025-01-01", "author": {"name": "Q", "email": "Q@khaa.pk"}, "modified": null, "size": 2048},
     "has_gamma_correction": false
 }

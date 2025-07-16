@@ -4,16 +4,140 @@
     Written by, Q@khaa.pk
  */
 
-use std::io;
+
+ //use std::fs::File;
+ //use std::io::{self, Read}; 
+
+use std::{env, io, fs::File, io::Read};
 use regex::Regex;
 
 use crate::file_content::FileContent;
-use crate::constants::{JSON_OPENIING_BRACE, JSON_CLOSING_BRACE, JSON_OPENING_BRACE_REG_EXPR_PATTERN, JSON_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_KEY_REG_EXPR_PATTERN, JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN, JSON_QUOTED_CONTENT_PATTERN, JSON_VALUE_TYPE_NUMERIC_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING, JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN, JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN};
+use crate::constants::{JSON_OPENIING_BRACE, JSON_CLOSING_BRACE, JSON_OPENING_BRACE_REG_EXPR_PATTERN, JSON_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_KEY_REG_EXPR_PATTERN, JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE, JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN, JSON_QUOTED_CONTENT_PATTERN, JSON_VALUE_TYPE_NUMERIC_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN, JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING, JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN, JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN, JSON_SINGLE_LINE_OBJECT_TYPE_KEY_NAME_WITH_OPENING_CLOSING_BRACE_PATTERN, JSON_VALUE_TYPE_NULL_PATTERN, JSON_VALUE_TYPE_FALSE_PATTERN, JSON_VALUE_TYPE_TRUE_PATTERN};
 use crate::json_object::{ValueType, Key, JsonKeyPtr, JsonObject};
 
+
+/// Removes the outermost opening and closing braces from a JSON string, preserving nested braces.
+///
+/// # Arguments
+/// * `input` - A string slice containing a JSON object (e.g., `{"key": "value"}`).
+///
+/// # Returns
+/// * `Ok(&str)` - The input string with the outermost braces removed (e.g., `"key": "value"`).
+/// * `Err(&'static str)` - If the input is invalid (e.g., not starting with `{`, not ending with `}`,
+///   or unbalanced braces).
+///
+/// # Example
+/// ```
+/// let json = r#"{"name": "test", "nested": {"a": 1}}"#;
+/// let result = remove_outer_braces(json).unwrap();
+/// assert_eq!(result, r#""name": "test", "nested": {"a": 1}"#);
+/// ```
+fn remove_outer_braces(input: &str) -> Result<&str, &'static str> {
+    let input = input.trim();
+    if input.is_empty() {
+        return Err("Input is empty");
+    }
+    if !input.starts_with('{') || !input.ends_with('}') {
+        return Err("Input must start with '{' and end with '}'");
+    }
+
+    let mut brace_count = 0;
+    let mut chars = input.chars().enumerate();
+    let mut start_idx = None;
+
+    for (i, ch) in chars.by_ref() {
+        if ch == '{' {
+            if brace_count == 0 {
+                start_idx = Some(i);
+            }
+            brace_count += 1;
+        } else if ch == '}' {
+            brace_count -= 1;
+            if brace_count == 0 && i == input.len() - 1 {
+                return Ok(&input[start_idx.unwrap() + 1..i]);
+            }
+        }
+    }
+
+    Err("Unbalanced braces in input")
+}
+
+
+pub fn process_singleline_json_array(line: &str, key: &mut Key) {
+
+}
+
+/// Processes a single-line JSON object, populating a `Key` with its key-value pairs.
+///
+/// This function parses a JSON object (e.g., `{"key": "value", "num": 42}`) from a single-line
+/// string, creating `Key` nodes for each key-value pair and storing them in the provided `key`'s
+/// `ptr` field. It handles all JSON value types: strings, numbers, booleans, nulls, objects, and
+/// arrays. Nested objects and arrays are processed recursively by calling
+/// `process_singleline_json_object` or `process_singleline_json_array`.
+///
+/// **Note**: Handling of escaped characters (e.g., `\"`, `\\`) and quotation marks within strings
+/// is still being finalized to ensure robust parsing of strings like `"value \"with\" quotes"`.
+/// The current implementation assumes well-formed JSON but will be updated to fully support
+/// escape sequences.
+///
+/// The function uses a state machine approach to track parsing states, including:
+/// - **Key collection**: Capturing key names within quotation marks.
+/// - **Value collection**: Identifying value types (string, number, boolean, null, object, array)
+///   and handling nested structures.
+/// - **Delimiter tracking**: Managing colons (`:`), commas (`,`), braces (`{}`), and brackets (`[]`).
+/// - **Nested structure counting**: Using `brace_count` and `bracket_count` to ensure proper nesting.
+///
+/// # Arguments
+/// * `line` - A string slice containing the JSON object (e.g., `{"key": "value"}`).
+/// * `key` - A mutable reference to a `Key` where key-value pairs are stored as nested keys in
+///   the `ptr` field. The `n` field of the `key` is updated to reflect the number of pairs.
+///
+/// # Returns
+/// * `Ok(())` if parsing succeeds.
+/// * `Err(&'static str)` if the input is malformed (e.g., unmatched braces, invalid values).
+///
+/// # State Machine Overview
+/// The function implements a finite state machine with the following states:
+/// - **Idle**: Initial state, skipping whitespace and waiting for a key's opening quote (`"`).
+/// - **Key Collection**: Collecting characters between quotes for a key name (`start_of_key`).
+/// - **Colon Encountered**: After a colon (`:`), identifying the value type (`colon_encountered`).
+/// - **String Value**: Collecting string characters, pending handling of escaped quotes
+///   (`value_type_string_found`).
+/// - **Object Value**: Tracking nested object with `brace_count` (`opening_brace_encountered`).
+/// - **Array Value**: Tracking nested array with `bracket_count` (`opening_bracket_encountered`).
+/// - **Non-Complex Value**: Collecting `null`, `true`, `false`, or numbers until a comma or end.
+///
+/// Transitions are driven by characters (e.g., `"`, `:`, `{`, `[`, `,`) and counters ensure proper
+/// nesting. The state machine ensures robust parsing of complex JSON structures while maintaining
+/// a linked list of `Key` nodes.
+///
+/// # Examples
+/// ```
+/// use json_parser::{Key, ValueType, process_singleline_json_object};
+///
+/// let mut root_key = Key::new(String::new(), ValueType::ObjectType, String::new());
+/// let json = r#"{"name": "John", "age": 30, "active": true, "data": {"id": 1}}"#;
+/// process_singleline_json_object(json, &mut root_key).unwrap();
+/// assert_eq!(root_key.get_n(), 4); // Four key-value pairs
+/// root_key.pretty_print();
+/// ```
+///
+/// # Notes
+/// - The function assumes the input is a single-line JSON object without newlines, aligning with
+///   the project's strategy to concatenate multi-line JSON into a single line for simplicity.
+/// - Escaped character handling (e.g., `\"`, `\n`) is under development. Future updates will
+///   include an `escaped` flag to correctly parse strings with embedded quotes.
+/// - For large JSON inputs, consider streaming to optimize memory usage, though the current
+///   approach is suitable for typical use cases.
+/// - The `pairs` vector is used for debugging and may be removed in production to reduce memory.
+///
+/// # See Also
+/// * `process_singleline_json_array`: Companion function for parsing JSON arrays.
+/// * `Key`: Structure for storing key-value pairs and nested structures.
+/// * `JsonObject`: Container for managing a linked list of `Key` nodes.
 pub fn process_singleline_json_object(line: &str, key: &mut Key) {
 
-    println!("--> Found opening brace: {}", line);
+    /*println!("--> Found opening brace: {}", line);*/
     
     // You have line of key/value pairs
     // You need to process each key/value pair, iterate through the line
@@ -94,6 +218,8 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
 
                 //value.push(ch);
 
+                //println!("-------------->>>>>>>>> {}", key_of_pair.clone());
+
                 opening_brace_encountered = true;
 
                 brace_count += 1;
@@ -108,10 +234,13 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
 
                     pairs.push((key_of_pair.clone(), value_of_pair.clone()));
 
+                    //println!("--------------<<<<<<<<<<<<<<<<<<<<<<<<<<< {}", key_of_pair.clone());
+                    //println!("--------------<<<<<<<<<<<<<<<<<<<<<<<<<<< {}", value_of_pair.clone());
+
                     /****************************************/
                     /* Place to add  JSON object value type */
                     /****************************************/
-                    let mut l_key = Key::new(key_of_pair.clone(), ValueType::ObjectType, String::new());
+                    let mut l_key = Key::new(key_of_pair.clone(), ValueType::ObjectType, value_of_pair.clone());
                     process_singleline_json_object(value_of_pair.clone().as_str(), &mut l_key);
                     key.add_key(Box::new(l_key));
                    /*****************************************************************************************************/
@@ -143,6 +272,14 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
 
                     pairs.push((key_of_pair.clone(), value_of_pair.clone()));
 
+                    /****************************************/
+                    /* Place to add  JSON array value type */
+                    /****************************************/
+                    let mut l_key = Key::new(key_of_pair.clone(), ValueType::ArrayType, String::new());
+                    process_singleline_json_array(value_of_pair.clone().as_str(), &mut l_key);
+                    key.add_key(Box::new(l_key));
+                   /*****************************************************************************************************/
+
                     key_of_pair.clear();
                     value_of_pair.clear();
 
@@ -152,16 +289,40 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
             // JSON null value type and JSON numeric value type and JSON boolean value type
             } else if opening_bracket_encountered && !opening_brace_encountered && !value_type_string_found {
 
-                value_of_pair.push(ch);                         
+                value_of_pair.push(ch); 
+                
+            // JSON null value type and JSON numeric value type and JSON boolean value type    
             } else if !opening_bracket_encountered && !opening_brace_encountered && !value_type_string_found {
 
                 if ch != ',' {
                     
-                    value_of_pair.push(ch);
+                    if ch != ' ' {
+
+                        value_of_pair.push(ch);
+                    }
                 } else {
 
-                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
 
+                    /* See if value type is null, only allowed value is "null" it self */
+                    if value_of_pair.clone() == "null" {
+                        
+                        let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
+                        key.add_key(l_key);
+
+                    } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" {
+
+                        let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
+                        key.add_key(l_key);
+
+                    // Value type is number    
+                    } else {
+                                                
+                        let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+                        key.add_key(l_key);
+                    }
+                        
+                    pairs.push((key_of_pair.clone(), value_of_pair.clone()));
+                    
                     key_of_pair.clear();
                     value_of_pair.clear(); 
                     
@@ -170,11 +331,36 @@ pub fn process_singleline_json_object(line: &str, key: &mut Key) {
             }
         }
     }
+
+    // Get the last key-value pair
+    if key_of_pair.len() > 0 && value_of_pair.len() > 0 {
+
+        if value_of_pair.clone() == "null" {
+            
+            let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
+            key.add_key(l_key);
+
+        } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" {
+
+            let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
+            key.add_key(l_key);
+        // Value type is Number    
+        } else {
+
+            let l_key = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+            key.add_key(l_key);   
+        }
+
+        pairs.push((key_of_pair.clone(), value_of_pair.clone()));
+                    
+        key_of_pair.clear();
+        value_of_pair.clear();         
+    }
         
     // Process the pairs
-    for (key, value) in pairs {
+    /*for (key, value) in pairs {
         println!("Key: {}, Value: {}", key, value);
-    }
+    }*/
 }
 
 /// Recursively parses a JSON object that may span multiple lines.
@@ -206,6 +392,9 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
     let value_string_type_regex = Regex::new(JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN).unwrap();
     let quoted_content_regex = Regex::new(JSON_QUOTED_CONTENT_PATTERN).unwrap();
     let value_numeric_type_regex = Regex::new(JSON_VALUE_TYPE_NUMERIC_PATTERN).unwrap();
+    let value_null_type_regex = Regex::new(JSON_VALUE_TYPE_NULL_PATTERN).unwrap();
+    let value_true_type_regex = Regex::new(JSON_VALUE_TYPE_TRUE_PATTERN).unwrap();
+    let value_false_type_regex = Regex::new(JSON_VALUE_TYPE_FALSE_PATTERN).unwrap();
     let value_json_array_type_regex = Regex::new(JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap(); // Matches `: ["` at the start of a JSON array value 
     let closing_square_bracket_of_json_array_type_regex = Regex::new(JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap();
     let single_line_json_array_type_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN).unwrap();
@@ -342,7 +531,17 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                             starting_line_number = /*file_content.get_current_line_index()*/ i;
                         }                       
                     }
-                // Check for single line json array                        
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line object, match for the very first and very last brace                         */
+                /* ************************************************************************************************************************** */    
+                // Has not yet implemented
+                /* ************************************************************************************************************************** */ 
+                
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line Array, match for the very first and very last bracket                        */
+                /* ************************************************************************************************************************** */ 
+                // Check for single line json array, though it works but this implementation is just for one specific case. 
+                /* ************************************************************************************************************************** */                       
                 } else if let Some(captures) = single_line_json_array_type_regex.captures(line) {
 
                     if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
@@ -369,15 +568,56 @@ pub fn process_multiline_json_object(l1: usize, l2: usize, file_content: &FileCo
                         
                                 // Create complete key-value pair for string type
                                 if let Some(key_name) = current_key_name.take() {
-
-                                    let l_key = Box::new(Key::new(key_name, ValueType::StringType, un_quoted_string.to_string()));
+                                    /*
+                                        // ValueType::ArrayType was ValueType::StringType
+                                        Here we are dealing with single line json array type like "image_data": [1, 2, 3]
+                                    */
+                                    let l_key = Box::new(Key::new(key_name, ValueType::ArrayType, un_quoted_string.to_string()));
                                     key.add_key(l_key);
                                     key_value_pair_complete = true;
                                 }
                             }                                                                                                    
                         });
-
                     }  
+                } else if value_null_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found null value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for null type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::NullType, "null".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_true_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found true value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for true type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::BooleanType, "true".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_false_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found false value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for false type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::BooleanType, "false".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
                 }
             // Chek if line consists of just the closing bracket of json array    
             } else if /*let Some(_captures) = closing_square_bracket_of_json_array_type_regex.captures(line)*/ closing_square_bracket_of_json_array_type_regex.is_match(line) {
@@ -450,6 +690,9 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
     let value_string_type_regex = Regex::new(JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN).unwrap();
     let quoted_content_regex = Regex::new(JSON_QUOTED_CONTENT_PATTERN).unwrap();
     let value_numeric_type_regex = Regex::new(JSON_VALUE_TYPE_NUMERIC_PATTERN).unwrap();
+    let value_null_type_regex = Regex::new(JSON_VALUE_TYPE_NULL_PATTERN).unwrap();
+    let value_true_type_regex = Regex::new(JSON_VALUE_TYPE_TRUE_PATTERN).unwrap();
+    let value_false_type_regex = Regex::new(JSON_VALUE_TYPE_FALSE_PATTERN).unwrap();
     let single_line_json_array_type_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN).unwrap();
     let single_line_json_array_type_value_string_regex = Regex::new(JSON_SINGLE_LINE_ARRAY_TYPE_PATTERN_VALUE_STRING).unwrap();
 
@@ -555,7 +798,17 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
                             starting_line_number = /*file_content.get_current_line_index()*/ i;
                         }                       
                     }
-                // Check for single line json array    
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line object, match for the very first and very last brace                         */
+                /* ************************************************************************************************************************** */    
+                // Has not yet implemented
+                /* ************************************************************************************************************************** */ 
+                
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line Array, match for the very first and very last bracket                        */
+                /* ************************************************************************************************************************** */ 
+                // Check for single line json array, though it works but this implementation is just for one specific case. 
+                /* ************************************************************************************************************************** */   
                 } else if let Some(captures) = single_line_json_array_type_regex.captures(line) {
 
                     if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
@@ -626,6 +879,45 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
                             key_value_pair_complete = true;
                         }
                     }
+                } else if value_null_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found null value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for null type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::NullType, "null".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_true_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found true value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for true type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::BooleanType, "true".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_false_type_regex.is_match(line) {
+
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+
+                        /*println! ("Found false value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for false type
+                        if let Some(key_name) = current_key_name.take() {
+                            let l_key = Box::new(Key::new(key_name, ValueType::BooleanType, "false".to_string()));
+                            key.add_key(l_key);
+                            key_value_pair_complete = true;
+                        }
+                    }
                 }
             // Chek if line consists of just the closing bracket of json array    
             } else if /*let Some(_captures) = closing_square_bracket_of_json_array_type_regex.captures(line)*/ closing_square_bracket_of_json_array_type_regex.is_match(line) {
@@ -668,6 +960,86 @@ pub fn process_multiline_json_array(l1: usize, l2: usize, file_content: &FileCon
     }    
 }
 
+pub fn json_main_single_line(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
+    let mut json_object = JsonObject::new();
+    let mut file = File::open(file_name)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    let single_line = contents.lines().collect::<Vec<&str>>().join("").trim().to_string();
+
+    if single_line.is_empty() {
+        return Ok(None);
+    }
+
+    let mut root_key = Key::new(String::new(), ValueType::ObjectType, String::new());
+    let inner_content = remove_outer_braces(&single_line)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+    // Move map_err to the Result returned by process_singleline_json_object
+    process_singleline_json_object(inner_content, &mut root_key)
+        /*.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?*/;
+    json_object.add_key(Box::new(root_key));
+
+    if json_object.get_n() > 0 {
+        Ok(Some(Box::new(json_object)))
+    } else {
+        Ok(None)
+    }
+}
+
+/*
+pub fn json_main_single_line_old(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
+    let mut json_object = JsonObject::new();
+    let mut file = File::open(file_name)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+    let single_line = contents.lines().collect::<Vec<&str>>().join("").trim().to_string();
+
+    if single_line.is_empty() {
+        return Ok(None);
+    }
+
+    let mut root_key = Key::new(String::new(), ValueType::ObjectType, String::new());
+    let inner_content = remove_outer_braces(&single_line)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+
+    process_singleline_json_object(inner_content, &mut root_key)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    json_object.add_key(Box::new(root_key));
+
+    if json_object.get_n() > 0 {
+        Ok(Some(Box::new(json_object)))
+    } else {
+        Ok(None)
+    }
+}
+    */
+
+pub fn json_main_single_line_older(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
+
+    let mut json_object = JsonObject::new();
+
+    let mut file_content = FileContent::from_file(file_name)?;
+
+    loop {
+        if let Some(line) = file_content.go_to_next_line() {
+            let mut l_key = Box::new(Key::new(String::new(), ValueType::ObjectType , String::new()));
+            process_singleline_json_object(line, &mut l_key);
+            json_object.add_key(l_key);
+        } else {
+
+            break; // Exit when we reach the end
+        }
+    }
+    
+    if json_object.get_n() > 0 {
+        Ok(Some(Box::new(json_object)))
+    } else {
+        Ok(None)
+    }
+}
+  
+
 /// The main entry point for parsing a JSON file.
 ///
 /// This function reads a file, iterates through its lines, and orchestrates the parsing process.
@@ -696,6 +1068,9 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
     let value_string_type_regex = Regex::new(JSON_VALUE_TYPE_STRING_REG_EXPR_PATTERN).unwrap();
     let quoted_content_regex = Regex::new(JSON_QUOTED_CONTENT_PATTERN).unwrap();
     let value_numeric_type_regex = Regex::new(JSON_VALUE_TYPE_NUMERIC_PATTERN).unwrap();
+    let value_null_type_regex = Regex::new(JSON_VALUE_TYPE_NULL_PATTERN).unwrap();
+    let value_true_type_regex = Regex::new(JSON_VALUE_TYPE_TRUE_PATTERN).unwrap();
+    let value_false_type_regex = Regex::new(JSON_VALUE_TYPE_FALSE_PATTERN).unwrap();
     let value_json_array_type_regex = Regex::new(JSON_OPENING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap();
     let closing_square_bracket_of_json_array_type_regex = Regex::new(JSON_CLOSING_SQUARE_BRACKET_PATTERN_FOR_ARRAY_TYPE).unwrap();
     let opening_brace_reg_expr = Regex::new(JSON_OPENING_BRACE_REG_EXPR_PATTERN).unwrap();
@@ -769,9 +1144,9 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
                         }
                         json_multi_line_array_opening_closing_bracket_count += 1;
                     }
-                // Check for single line array 
-
-                // Check for single line object, match for the very first and very last brace
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line object, match for the very first and very last brace                         */
+                /* ************************************************************************************************************************** */
                 } else if value_opening_brace_reg_expr.is_match(line) && value_closing_brace_reg_expr.is_match(line) {                    
                     if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count == 0 {                                                                        
                         if let Some(key_name) = current_key_name.take() {                            
@@ -781,6 +1156,44 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
                                 json_object.add_key(key);
                                 key_value_pair_complete = true;
                             }
+                        }
+                    }
+                /* ************************************************************************************************************************** */                    
+                /*                         Check for single line Array, match for the very first and very last bracket                        */
+                /* ************************************************************************************************************************** */ 
+                // Has not yet implemented
+                /* ************************************************************************************************************************** */  
+                } else if value_null_type_regex.is_match(line) {
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+                        /*println! ("Found null value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for null type
+                        if let Some(key_name) = current_key_name.take() {
+                            let key = Box::new(Key::new(key_name, ValueType::NullType, "null".to_string()));
+                            json_object.add_key(key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_true_type_regex.is_match(line) {
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+                        /*println! ("Found true value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for true type
+                        if let Some(key_name) = current_key_name.take() {
+                            let key = Box::new(Key::new(key_name, ValueType::BooleanType, "true".to_string()));
+                            json_object.add_key(key);
+                            key_value_pair_complete = true;
+                        }
+                    }
+                } else if value_false_type_regex.is_match(line) {
+                    if json_multi_line_object_opening_closing_brace_count == 0 && json_multi_line_array_opening_closing_bracket_count == 0 {
+                        /*println! ("Found false value: {}", captures.get(1).map_or("", |m| m.as_str()));*/
+
+                        // Create complete key-value pair for false type
+                        if let Some(key_name) = current_key_name.take() {
+                            let key = Box::new(Key::new(key_name, ValueType::BooleanType, "false".to_string()));
+                            json_object.add_key(key);
+                            key_value_pair_complete = true;
                         }
                     }
                 }
@@ -928,7 +1341,7 @@ pub fn json_main_old() -> /*Result<(), io::Error>*/ /*Option<Box<JsonObject>>*/ 
                         if let Some (quoted_content_match) = quoted_content_regex.captures( key_match.as_str()) {
                             let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
 
-                            println!("Found quoted string key: ----> {}", un_quoted_string); // Prints: key name
+                            /*println!("Found quoted string key: ----> {}", un_quoted_string);*/ // Prints: key name
                             //key = un_quoted_string.to_string();
                             key.set_name(un_quoted_string.to_string());
                             
@@ -955,7 +1368,7 @@ pub fn json_main_old() -> /*Result<(), io::Error>*/ /*Option<Box<JsonObject>>*/ 
                             if let Some (quoted_content_match) = quoted_content_regex.captures( value_match.as_str()) {
                                 let un_quoted_string = quoted_content_match.get(1).map_or("", |m| m.as_str());
 
-                                println!("Found quoted string value: {}", un_quoted_string); // Prints: test.png
+                                /*println!("Found quoted string value: {}", un_quoted_string);*/ // Prints: test.png
                                 key.set_value(un_quoted_string.to_string());
 
                                 key.set_value_type(ValueType::StringType);
@@ -1047,7 +1460,7 @@ pub fn json_main_old() -> /*Result<(), io::Error>*/ /*Option<Box<JsonObject>>*/ 
                 }
             } else if opening_brace_reg_expr.is_match(line) {
                             
-                println! ("--> Found opening brace: {}", line);
+                /*println! ("--> Found opening brace: {}", line);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 {
 
@@ -1061,7 +1474,7 @@ pub fn json_main_old() -> /*Result<(), io::Error>*/ /*Option<Box<JsonObject>>*/ 
 
             } else if closing_brace_reg_expr.is_match(line) {
             
-                println! ("--> Found closing brace: {}", line);
+                /*println! ("--> Found closing brace: {}", line);*/
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count > 0 {
 

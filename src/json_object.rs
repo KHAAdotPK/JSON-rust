@@ -195,11 +195,17 @@ impl JsonObject {
     /// - Maintains accurate count of nodes (self.n)
     /// - Preserves list linkage integrity
     /// - Never leaks memory or creates dangling pointers
-    pub fn add_key(&mut self, key: Box<Key>) {
+    pub fn add_key(&mut self, mut key: Box<Key>) {
         // Use pattern matching to handle both empty and non-empty cases
         match &mut self.ptr {
             // Case 1: Empty list
             None => {
+
+                /*if key.get_name() == String::new() {
+                    
+                    key.set_name("JSON".to_string());
+                }*/
+
                 // Set the new key as the head of the list
                 self.ptr = Some(key);
                 // Initialize node count to 1
