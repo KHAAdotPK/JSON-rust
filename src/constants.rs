@@ -35,11 +35,11 @@ pub const JSON_CLOSING_BRACE: &str = "}";
 // Regular expression patterns for JSON structures
 // --------------------------------------------------
 
-pub const JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN: &str = r#""[^"]*"\s*:\s*[^{]*\{\s*(?:[^}]|$)"#; //r#":\s*\{\s*"#; //r"(?m)(?:^\s*\{\s*$|:\s*\{)"; // r#":\s*\{\s*\.*\s*"#;  // r"^\s*\{\s*$"; 
+pub const JSON_VALUE_OPENING_BRACE_REG_EXPR_PATTERN: &str = r#""[^"]*"\s*:\s*\{\s*$"#  /*r".*\s*:\s*\{\s*$"*/  /*r#""[^"]*"\s*:\s*[^{]*\{\s*(?:[^}]|$)"#*/; //r#":\s*\{\s*"#; //r"(?m)(?:^\s*\{\s*$|:\s*\{)"; // r#":\s*\{\s*\.*\s*"#;  // r"^\s*\{\s*$"; 
 pub const JSON_VALUE_CLOSING_BRACE_REG_EXPR_PATTERN: &str = r#"[^{}\s][^{}]*\}\s*(?:,\s*)?$"#; //r"(?m)(?:^\s*\}\s*$|\S.*\})"; // r#"\s*\.*\s*\}\s*"#;  // r"^\s*\}\s*,?\s*$";
 
-pub const JSON_OPENING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\{\s*$"; // Standalone opening brace
-pub const JSON_CLOSING_BRACE_REG_EXPR_PATTERN: &str = r"^\s*\}\s*,?\s*$"; // Standalone closing brace followed by optional comma
+pub const JSON_OPENING_BRACE_REG_EXPR_PATTERN: &str =  r"^\s*\{\s*$"; // Standalone opening brace
+pub const JSON_CLOSING_BRACE_REG_EXPR_PATTERN: &str =  r"^\s*\}\s*,?\s*$"; // Standalone closing brace followed by optional comma
 
 pub const JSON_OPENING_BRACKET_REG_EXPR_PATTERN: &str = r"^\s*\[\s*$";
 pub const JSON_CLOSING_BRACKET_REG_EXPR_PATTERN: &str = r"^\s*\]\s*,?\s*$";

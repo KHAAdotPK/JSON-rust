@@ -48,7 +48,7 @@ impl FileContent {
     // index originates at 0
     pub fn get_line_by_index(&self, index: usize) -> Option<&String> {
 
-        if index < self.lines.len() {
+        if index < self.count_lines() {
            
            return self.lines.get(index);
         } 

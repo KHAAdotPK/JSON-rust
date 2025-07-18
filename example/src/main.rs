@@ -4,7 +4,26 @@
      Written by, Q@khaa.pk
  */
 
-use std::{env, io};
+use std::{env, io, fs::File, io::Read, io::Write};
+
+
+fn concatenate_json_to_single_line(input_path: &str, output_path: &str) -> io::Result<()> {
+    // Read the entire file
+    let mut file = File::open(input_path)?;
+    let mut contents = String::new();
+    file.read_to_string(&mut contents)?;
+
+    // Remove newlines and extra whitespace
+    let single_line = contents.lines().collect::<Vec<&str>>().join("");
+
+    // Write to output file
+    let mut output = File::create(output_path)?;
+    output.write_all(single_line.as_bytes())?;
+
+    Ok(())
+}
+
+
 
 // Choose one of the two following statements
 /*
@@ -17,17 +36,33 @@ use std::{env, io};
      This is a more explicit import which only brings the specific items we need into scope.
      This is generally recommended as it provides better control and clarity.
  */
-use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::json_main};
+use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::json_main, json::json_main_single_line_older, json::parser};
 //use png::{png::Png, png::PngChunk, png::PngChunkData, png::PngChunkData::PngChunkDataIHDR, png::PngChunkData::PngChunkDataIDAT, png::PngChunkData::PngChunkDataIEND};
 
 fn main() -> Result<(), io::Error> {
 
     // Get current directory and build path
     let current_dir = env::current_dir()?;
-    let json_path = current_dir.join("src").join("png.json"); 
+    let json_path = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
+    //let json_path = current_dir.join("src").join("png.json");    
+    //let json_path = current_dir.join("src").join("single_line_json_examples.json");
+
+    let json_path_to_input = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
+    let json_path_to_output = current_dir.join("src").join("./../DOCUMENTS/single_line.json");
+
+    let json_path_to_input_of_complex_example = current_dir.join("src").join("./../DOCUMENTS/very-complex-example.json");
+
+
+    concatenate_json_to_single_line(json_path_to_input.to_str().unwrap(), json_path_to_output.to_str().unwrap())?;
         
     let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path.to_str().unwrap());
 
+    let json_object_single_line: Result<Option<Box<JsonObject>>, io::Error> = json_main_single_line_older(json_path_to_output.to_str().unwrap());
+
+    let parsed_json = parser (json_path_to_input_of_complex_example.to_str().unwrap());
+
+    //let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path_to_input_of_complex_example.to_str().unwrap());
+ 
     /*
     // To print the very long (relatively) tree structure of the JSON object
     match json_object {
@@ -42,7 +77,7 @@ fn main() -> Result<(), io::Error> {
     }
      */
       
-   match json_object {
+   match /*json_object*/ parsed_json {
 
        Ok(Some(jobj)) => {
 
@@ -55,24 +90,24 @@ fn main() -> Result<(), io::Error> {
             let mut i: usize = 0;
 
             // Option 1.
-            /*loop*/ {
+            /*loop {
                 
-                //println!("Processing node {}: {}", i, ptr.get_name());
+                println!("Processing node {}: {}", i, ptr.get_name());
 
                 // Process the node here
 
                 // Option 1.1: Note: -1 because we start from the first node and also the next of (n - 1)th node has None as value. Unwrapping None will cause a panic                
-                /*if i >= jobj.get_n() - 1 {
+                if i >= jobj.get_n() - 1 {
                   
                     break;
                 }
 
                 ptr = ptr.get_next().unwrap();
 
-                i += 1;*/
+                i += 1;
 
                 // Option 1.2: Check for None before unwrapping
-                /*if let Some(next_ptr) = ptr.get_next() {
+                if let Some(next_ptr) = ptr.get_next() {
 
                     ptr = next_ptr;
 
@@ -80,8 +115,8 @@ fn main() -> Result<(), io::Error> {
                 } else {
 
                     break;
-                }*/
-            }
+                }
+            }*/
 
             // Option 2: Use a while loop with proper condition
             /*while i < jobj.get_n() {

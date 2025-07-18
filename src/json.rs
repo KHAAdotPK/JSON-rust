@@ -1067,6 +1067,318 @@ pub fn json_main_single_line_older(file_name: &str) -> Result<Option<Box<JsonObj
         Ok(None)
     }
 }
+
+pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
+
+    let mut array_type_encountered = false;
+    let mut array_type_encountered_count: usize = 0;
+    let mut colon_encountered = false;
+    let mut escape_character_found = false;
+    let file_content = FileContent::from_file(file_name)?;
+    let mut object_type_encountered = false;
+    let mut object_type_encountered_count: usize = 0;
+    let mut string_value_type_encountered = false;
+
+    let mut key_of_pair = String::new();
+    let mut value_of_pair = String::new();
+
+    let mut json_object = JsonObject::new();
+
+    let mut i: usize = 0;
+
+    loop {
+
+        let line = file_content.get_line_by_index(i);
+
+        if line == None {
+
+            break;
+        }
+
+        let mut line_of_peekable_chars = line.unwrap().chars().peekable();
+
+        while let Some(ch) = line_of_peekable_chars.next() {
+
+            if (ch == '{' && i == 0) || (ch == '}' && i == (file_content.count_lines() - 1)) { // Ignore JSON root object
+                
+                continue;
+            }
+
+            // Key-value pairs
+
+            // Identify if it is a key
+
+            // TODO: Add Unicode escape sequence support (\uXXXX)
+            // When encountering 'u' after backslash, need to:
+            // 1. Read next 4 characters and validate they are valid hex digits (0-9, A-F, a-f)
+            // 2. Convert the 4-digit hex string to a u32 code point
+            // 3. Convert code point to char using char::from_u32()
+            // 4. Handle invalid Unicode code points gracefully
+            // Example: \u0041 -> 'A', \u00E9 -> 'é', \u03B1 -> 'α'
+            // This requires look-ahead parsing since we need to consume 4 more characters
+            // after seeing 'u' in the escape sequence
+            if !colon_encountered {
+
+                if ch == ':'  {
+
+                    colon_encountered = true;
+                    
+                    continue;
+                }
+
+                if ch == '\\' && !escape_character_found { // Escape character
+
+                    /*key_of_pair.push(ch);*/  // Keep it commented, don't push the backslash - just set the flag
+                    escape_character_found = true;
+
+                    continue;
+                }
+
+                if escape_character_found { // The key insight is that "\n" in JSON represents one character (newline '\n'), not string with two characters (\ + n).
+                                        
+                    match ch {                        
+                        '"' => key_of_pair.push('\"'), // JSON "\"" 
+                        'n' => key_of_pair.push('\n'), // JSON "\n" 
+                        't' => key_of_pair.push('\t'), // JSON "\t" 
+                        'r' => key_of_pair.push('\r'), // JSON "\r"
+                        '\\' => key_of_pair.push('\\'), // JSON "\\"
+                        // More
+                        '/' => key_of_pair.push('/'),
+                        'b' => key_of_pair.push('\u{0008}'), // JSON "\b" for backspace Unicode sequences \uXXXX
+                        'f' => key_of_pair.push('\u{000C}'), // JSON "\f" for formfeed Unicode sequences \uXXXX
+                        /* This is incomplete list of escaped caracters */
+                        _ => {
+                            // For unknown escape sequences, just add the character                                                                                 
+                            if ch != ' ' { 
+
+                                key_of_pair.push(ch);
+                            }
+                        }                        
+                    }
+
+                    escape_character_found = false; // Reset escape character flag
+
+                } else { // Regular charater not part of escape sequence  
+
+                    if ch != ' ' && ch != '"' && ch != ',' {    
+
+                        key_of_pair.push(ch);
+                    }
+                }
+                
+                continue;                                                                           
+            }
+
+            /* ************************************************************************************************************************** */
+            /*                                                      Array value type                                                      */ 
+            /* ************************************************************************************************************************** */
+            if !object_type_encountered && ch == '[' {
+
+                if array_type_encountered {
+
+                    value_of_pair.push(ch);
+                } else {
+                    array_type_encountered = true;
+                }
+
+                array_type_encountered_count += 1;
+
+                continue;
+            }
+            if ch == ']' && array_type_encountered {
+
+                array_type_encountered_count -= 1;
+
+                if array_type_encountered_count == 0 {
+
+                    // Array type has complete key/value pair deal with it
+
+                    array_type_encountered = false;
+
+                    // We are dealing with multiline json constructs, that is at the end of each construct we will reset the state of these variables 
+                    key_of_pair.clear();
+                    value_of_pair.clear();
+
+                    colon_encountered = false;
+                } else {
+
+                    value_of_pair.push(ch);
+                }
+
+                continue;
+            }
+            if array_type_encountered {
+
+                value_of_pair.push(ch);
+
+                continue;
+            }
+            /* ************************************************************************************************************************** */
+            /*                                            -: End :- Array value type -: End :-                                            */ 
+            /* ************************************************************************************************************************** */
+
+            /* ************************************************************************************************************************** */
+            /*                                                      Object value type                                                     */ 
+            /* ************************************************************************************************************************** */
+            if !array_type_encountered && ch == '{' {
+
+                if object_type_encountered {
+
+                    value_of_pair.push(ch);
+                } else {
+                    object_type_encountered = true;
+                }
+
+                object_type_encountered_count += 1;
+
+                continue;
+            }
+            if ch == '}' && object_type_encountered {
+
+                object_type_encountered_count -= 1;
+
+                if object_type_encountered_count == 0 {
+
+                    // Object type has complete key/value pair deal with it
+
+                    object_type_encountered = false;
+
+                    // We are dealing with multiline json constructs, that is at the end of each construct we will reset the state of these variables 
+                    key_of_pair.clear();
+                    value_of_pair.clear();
+
+                    colon_encountered = false;
+                } else {
+
+                    value_of_pair.push(ch);
+                }
+
+                continue;
+            }
+            if object_type_encountered {
+
+                value_of_pair.push(ch);
+
+                continue;
+            }
+            /* ************************************************************************************************************************** */
+            /*                                            -: End :- Object value type -: End :-                                           */ 
+            /* ************************************************************************************************************************** */
+            
+                        
+            /* ************************************************************************************************************************** */
+            /*                                                      String value type                                                     */ 
+            /* ************************************************************************************************************************** */            
+            // TODO 1: Add escape character handling for string values - currently missing!
+            // String values can contain escape sequences like \n, \t, \", \\, etc. just like keys
+            // Need to implement the same escape_character_found logic that exists for keys
+            // This is critical because JSON strings with escapes will be parsed incorrectly
+            //
+            // TODO 2: Add Unicode escape sequence support (\uXXXX)
+            // When encountering 'u' after backslash, need to:
+            // 2.1. Read next 4 characters and validate they are valid hex digits (0-9, A-F, a-f)
+            // 2.2. Convert the 4-digit hex string to a u32 code point
+            // 2.3. Convert code point to char using char::from_u32()
+            // 2.4. Handle invalid Unicode code points gracefully
+            // Example: \u0041 -> 'A', \u00E9 -> 'é', \u03B1 -> 'α'
+            // This requires look-ahead parsing since we need to consume 4 more characters
+            // after seeing 'u' in the escape sequence
+            if (!array_type_encountered && !object_type_encountered)  && (ch == '"' && !string_value_type_encountered) {
+
+                string_value_type_encountered = true;
+                
+                continue;                
+            }
+            if ch == '"' && string_value_type_encountered {
+
+                string_value_type_encountered = false;
+                                
+                // String type has complete key/value pair deal with it
+
+                println! ("{}, {}", key_of_pair, value_of_pair);
+
+                let key = Box::new(Key::new(key_of_pair.clone(), ValueType::StringType, value_of_pair.clone()));
+                json_object.add_key(key);
+
+                // We are dealing with multiline json constructs, that is at the end of each construct we will reset the state of these variables                 
+                key_of_pair.clear(); 
+                value_of_pair.clear();
+
+                colon_encountered = false;
+
+                continue;                
+            }
+            if ch != '"' && string_value_type_encountered {
+
+                value_of_pair.push(ch);
+
+                continue;
+            }
+            /* ************************************************************************************************************************** */
+            /*                                            -: End :- String value type -: End :-                                           */ 
+            /* ************************************************************************************************************************** */
+
+            /* ************************************************************************************************************************** */
+            /*                                               Null, Boolean, Number value type                                             */ 
+            /* ************************************************************************************************************************** */
+            if (!array_type_encountered && !object_type_encountered && !string_value_type_encountered) && ch != ',' {
+
+                if ch != ' ' {
+
+                    value_of_pair.push(ch);
+                }
+
+                continue;
+            }
+            if (!array_type_encountered && !object_type_encountered && !string_value_type_encountered) && ch == ',' { // Each such token is delimited by ','
+
+                // Null, Boolean, Number type has complete key/value pair deal with it
+                
+                if value_of_pair == "null" { // Null type
+
+                    println! ("NULL -> {}, {}", key_of_pair, value_of_pair);
+
+                    let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, String::new()));
+                    json_object.add_key(key);
+
+                } else if value_of_pair == "true" || value_of_pair == "false" { // Boolean type
+
+                    println! ("BOOLEAN -> {}, {}", key_of_pair, value_of_pair);
+
+                    let key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
+                    json_object.add_key(key);
+                } else { // Number type
+
+                    println! ("NUMBER -> {}, {}", key_of_pair, value_of_pair);
+
+                    let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+                    json_object.add_key(key);
+                } 
+
+                // We are dealing with multiline json constructs, that is at the end of each construct we will reset the state of these variables 
+                key_of_pair.clear(); 
+                value_of_pair.clear();
+
+                colon_encountered = false;
+
+                continue;
+            }
+            /* ************************************************************************************************************************** */
+            /*                                      -: End :- Null, Boolean, Number value type -: End :-                                  */ 
+            /* ************************************************************************************************************************** */
+        }
+               
+        i = i + 1;        
+    }
+
+    if json_object.get_n() > 0 {
+
+        Ok(Some(Box::new(json_object)))        
+    } else {
+
+        Ok(None)
+    }    
+}
   
 
 /// The main entry point for parsing a JSON file.
@@ -1252,8 +1564,8 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
                     }
                 }
                 
-            } else if opening_brace_reg_expr.is_match(line) {
-                /*println!("--> Found opening brace: {}", line);*/
+            } else if value_opening_brace_reg_expr.is_match(line) || opening_brace_reg_expr.is_match(line) {
+                //println!("--> Found opening brace: {}", line);
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 {
                     if starting_line_number == 0 {
@@ -1262,8 +1574,8 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
                     json_multi_line_object_opening_closing_brace_count += 1;
                 }
 
-            } else if closing_brace_reg_expr.is_match(line) {
-                /*println!("--> Found closing brace: {}", line);*/
+            } else if closing_brace_reg_expr.is_match(line) || value_closing_brace_reg_expr.is_match(line) {
+                //println!("--> Found closing brace: {}", line);
 
                 if json_multi_line_array_opening_closing_bracket_count == 0 && json_multi_line_object_opening_closing_brace_count > 0 {
                     json_multi_line_object_opening_closing_brace_count -= 1;
@@ -1273,7 +1585,8 @@ pub fn json_main(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> 
 
                         // Create complete key-value pair for object type
                         if let Some(key_name) = current_key_name.take() {
-                            let key = Box::new(Key::new(key_name, ValueType::ObjectType, String::new()));
+                            let mut key = Box::new(Key::new(key_name, ValueType::ObjectType, String::new()));
+                            process_multiline_json_object(starting_line_number, ending_line_number, &file_content, &mut key);
                             json_object.add_key(key);
                             key_value_pair_complete = true;
                         
