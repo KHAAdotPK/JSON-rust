@@ -6,25 +6,6 @@
 
 use std::{env, io, fs::File, io::Read, io::Write};
 
-
-fn concatenate_json_to_single_line(input_path: &str, output_path: &str) -> io::Result<()> {
-    // Read the entire file
-    let mut file = File::open(input_path)?;
-    let mut contents = String::new();
-    file.read_to_string(&mut contents)?;
-
-    // Remove newlines and extra whitespace
-    let single_line = contents.lines().collect::<Vec<&str>>().join("");
-
-    // Write to output file
-    let mut output = File::create(output_path)?;
-    output.write_all(single_line.as_bytes())?;
-
-    Ok(())
-}
-
-
-
 // Choose one of the two following statements
 /*
      1. Either this. It is a wildcard import which brings all items from the crate into scope.
@@ -36,55 +17,49 @@ fn concatenate_json_to_single_line(input_path: &str, output_path: &str) -> io::R
      This is a more explicit import which only brings the specific items we need into scope.
      This is generally recommended as it provides better control and clarity.
  */
-use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::json_main, json::json_main_single_line_older, json::parser};
+use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::parser};
 //use png::{png::Png, png::PngChunk, png::PngChunkData, png::PngChunkData::PngChunkDataIHDR, png::PngChunkData::PngChunkDataIDAT, png::PngChunkData::PngChunkDataIEND};
 
 fn main() -> Result<(), io::Error> {
 
     // Get current directory and build path
     let current_dir = env::current_dir()?;
-    let json_path = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
+    //let json_path = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
     //let json_path = current_dir.join("src").join("png.json");    
     //let json_path = current_dir.join("src").join("single_line_json_examples.json");
 
-    let json_path_to_input = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
-    let json_path_to_output = current_dir.join("src").join("./../DOCUMENTS/single_line.json");
+    //let json_path_to_input = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
+    //let json_path_to_output = current_dir.join("src").join("./../DOCUMENTS/single_line.json");
 
-    let json_path_to_input_of_complex_example = current_dir.join("src").join("./../DOCUMENTS/very-complex-example.json");
+    //let json_path_to_input_of_complex_example = current_dir.join("src").join("./../DOCUMENTS/very-complex-example.json");
 
 
-    concatenate_json_to_single_line(json_path_to_input.to_str().unwrap(), json_path_to_output.to_str().unwrap())?;
+    
         
-    let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path.to_str().unwrap());
+//    let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path.to_str().unwrap());
 
-    let json_object_single_line: Result<Option<Box<JsonObject>>, io::Error> = json_main_single_line_older(json_path_to_output.to_str().unwrap());
+//    let json_object_single_line: Result<Option<Box<JsonObject>>, io::Error> = json_main_single_line_older(json_path_to_output.to_str().unwrap());
 
-    let parsed_json = parser (json_path_to_input_of_complex_example.to_str().unwrap());
 
+
+//    let parsed_json = parser (json_path_to_input_of_complex_example.to_str().unwrap());
+
+//    let json_path_for_simple_json = current_dir.join("src").join("png.json");  
+//    let parsed_json_for_simple_json = parser (json_path_for_simple_json.to_str().unwrap());
+
+    //let parsed_json_from_complex_json_file = parser_new (json_path_to_input_of_complex_example.to_str().unwrap());
+
+    let json_path_very_simple_file = current_dir.join("src").join("test.json"); 
+
+    let parsed_json_of_very_simple_file   = parser (json_path_very_simple_file.to_str().unwrap());
     //let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path_to_input_of_complex_example.to_str().unwrap());
- 
-    /*
-    // To print the very long (relatively) tree structure of the JSON object
-    match json_object {
-
-      /*Ok(json_object) => println!("JSON object: {:#?}", json_object),*/
-      Ok(json_object) => {
-
-          println!("JSON object: {:#?}", json_object);     
-      },
-
-      Err(e) => println!("Error: {}", e),
-    }
-     */
-      
-   match /*json_object*/ parsed_json {
+     
+    match /*json_object*/ /*parsed_json*/ /*parsed_json_for_simple_json*/ /*parsed_json_from_complex_json_file*/ parsed_json_of_very_simple_file {
 
        Ok(Some(jobj)) => {
 
             jobj.pretty_print();
-
-            println!("Number of nodes in jobj is {}", jobj.get_n());
-
+            
             let mut ptr: &Box<Key> = jobj.get_ptr().as_ref().unwrap();
             
             let mut i: usize = 0;
