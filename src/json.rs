@@ -55,9 +55,13 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
             }*/
                       
             // Handle JSON root object markers (first '{' and last '}')
-            if ((ch == '{' && i == 0) || (ch == '}' && i == (line.len() - 1))) || ((ch == '[' && i == 0) || (ch == ']' && i == (line.len() - 1))) { // Ignore JSON root object
+            if ((ch == '{' && i == 0) || (ch == '}' && i == (line.len() - 1))) || ((ch == '[' && i == 0) || (ch == ']' && i == (line.len() - 1))) || ch == '\n' { // Ignore JSON root object
 
                 //println! ("Hola...... ");
+
+                //println! ("k = {} / n = {} / v = {}", key_of_pair, neutral_string, value_of_pair);
+
+                /*println! ("-> k = {} / n = {} / v = {} and {}", key_of_pair, neutral_string, value_of_pair, end_of_string_encountered);*/
                 
                 // Edge case: handle any remaining string type key-value pair before root object ends
                 if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && neutral_string.len() > 0 {
@@ -79,22 +83,29 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
 
                     //println! ("{} / {}", key_of_pair, value_of_pair);
 
+                    /*println! ("-> Are we there yet.... {}", neutral_string.clone());*/
+
                     value_of_pair = neutral_string.clone();
 
-                    if value_of_pair.clone() == "null" { // Null
+                    if value_of_pair.clone().trim() == "null" { // Null
 
                         let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
                         key.add_key(lkey);
   
-                    } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" { // Boolean
+                    } else if value_of_pair.clone().trim() == "true" || value_of_pair.clone().trim() == "false" { // Boolean
 
-                        let key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
-                        json_object.add_key(key);
+                        /*println! ("Yes we are....");*/
+
+                        let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
+                        key.add_key(lkey);
 
                     } else { // Number
                     
-                        let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
-                        key.add_key(lkey);
+                        //if value_of_pair.len() > 0 {
+
+                            let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+                            key.add_key(lkey);
+                        //}
                     }
 
                     // Cleanup
@@ -125,6 +136,8 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
                 array_type_encountered_count -= 1;
 
                 if array_type_encountered_count == 0 {
+
+                    array_type_encountered = false;
 
                     // Here we have a complete key/value pair of Object type, add it to the json tree
                     //println! ("{} / {}", key_of_pair, value_of_pair);
@@ -243,6 +256,8 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
                 // Reset
                 end_of_string_encountered = false;
 
+                //println! ("A = ----> {}", key_of_pair);
+
                 i = i + 1;
                                 
                 continue;
@@ -270,7 +285,7 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
                 continue;
             }
             // Value handling for non-string types (null, boolean, number)
-            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && ch != ' ' && ch != ',' {
+            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && ch != ' ' && ch != ',' && ch != '\n' {
 
                 //value_of_pair.push(ch);
                 neutral_string.push(ch);
@@ -280,26 +295,28 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
                 continue;
             }
             // Finalize non-string value when comma encountered
-            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && ch == ',' {
+            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && neutral_string.len() > 0  && (ch == ',' || ch == '\n') {
 
                 //println! ("{} / {}", key_of_pair, value_of_pair);
 
                 value_of_pair = neutral_string.clone();
 
-                if value_of_pair.clone() == "null" { // Null
+                if value_of_pair.clone().trim() == "null" { // Null
 
-                    let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
-                    json_object.add_key(key);
+                    let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
+                    key.add_key(lkey);
   
-                } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" { // Boolean
+                } else if value_of_pair.clone().trim() == "true" || value_of_pair.clone().trim() == "false" { // Boolean
 
                     let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
                     key.add_key(lkey);
 
                 } else { // Number
-                    
-                    let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
-                    key.add_key(lkey);
+                    //if value_of_pair.len() > 0 {
+                        
+                        let lkey = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+                        key.add_key(lkey);
+                    //}
                 }
                 
                 // Cleanup
@@ -311,7 +328,7 @@ pub fn helper_for_object_and_array_types (line: &str, key: &mut Key) {
 
                 continue;
             }
-
+            
             i = i + 1;                            
         }           
 }
@@ -394,7 +411,9 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
         while let Some(ch) = line_of_peekable_chars.next() {
           
             // Handle JSON root object markers (first '{' and last '}')
-            if ( (ch == '{' && i == 0) || (ch == '}' && i == (file_content.count_lines() - 1)) ) || ( (ch == '[' && i == 0) || (ch == ']' && i == (file_content.count_lines() - 1)) ) { // Ignore JSON root object
+            if ( (ch == '{' && i == 0) || (ch == '}' && i == (file_content.count_lines() - 1)) ) || ( (ch == '[' && i == 0) || (ch == ']' && i == (file_content.count_lines() - 1)) ) || ch == '\n' { // Ignore JSON root object
+
+                /*println! ("--> k = {} / n = {} / v = {} and {}", key_of_pair, neutral_string, value_of_pair, end_of_string_encountered);*/
 
                 // Edge case: handle any remaining string type key-value pair before root object ends
                 if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && neutral_string.len() > 0 {
@@ -417,12 +436,14 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
                     //println! ("{} / {}", key_of_pair, value_of_pair);
                     value_of_pair = neutral_string.clone();
 
-                    if value_of_pair.clone() == "null" { // Null
+                    /*println! ("--> Are we there yet....");*/
+
+                    if value_of_pair.clone().trim() == "null" { // Null
 
                         let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
                         json_object.add_key(key);
   
-                    } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" { // Boolean
+                    } else if value_of_pair.clone().trim() == "true" || value_of_pair.clone().trim() == "false" { // Boolean
 
                         let key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
                         json_object.add_key(key);
@@ -457,6 +478,8 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
                 array_type_encountered_count -= 1;
 
                 if array_type_encountered_count == 0 {
+
+                    array_type_encountered = false;
 
                     // Here we have a complete key/value pair of Object type, add it to the json tree
                     //println! ("{} / {}", key_of_pair, value_of_pair);
@@ -558,6 +581,8 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
 
                 // Reset
                 end_of_string_encountered = false;
+
+                //println! ("----> {}", key_of_pair);
                                 
                 continue;
             }
@@ -582,7 +607,7 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
                 continue;
             }
             // Value handling for non-string types (null, boolean, number)
-            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) && key_of_pair.len() > 0 && ch != ' ' && ch != ',' {
+            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && ch != ' ' && ch != ',' && ch != '\n' {
 
                 //value_of_pair.push(ch);
                 neutral_string.push(ch);
@@ -590,26 +615,28 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
                 continue;
             }
             // Finalize non-string value when comma encountered
-            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) && key_of_pair.len() > 0 && ch == ',' {
+            if (!array_type_encountered && !object_type_encountered && !start_of_string_encountered && !end_of_string_encountered) /*&& key_of_pair.len() > 0*/ && (ch == ',' || ch == '\n') {
 
                 //println! ("{} / {}", key_of_pair, value_of_pair);
 
                 value_of_pair = neutral_string.clone();
 
-                if value_of_pair.clone() == "null" { // Null
+                if value_of_pair.clone().trim() == "null" { // Null
 
                     let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NullType, value_of_pair.clone()));
                     json_object.add_key(key);
   
-                } else if value_of_pair.clone() == "true" || value_of_pair.clone() == "false" { // Boolean
+                } else if value_of_pair.clone().trim() == "true" || value_of_pair.clone().trim() == "false" { // Boolean
 
                     let key = Box::new(Key::new(key_of_pair.clone(), ValueType::BooleanType, value_of_pair.clone()));
                     json_object.add_key(key);
 
                 } else { // Number
-                    
-                    let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
-                    json_object.add_key(key);
+                    if value_of_pair.len() > 0 {
+
+                        let key = Box::new(Key::new(key_of_pair.clone(), ValueType::NumberType, value_of_pair.clone()));
+                        json_object.add_key(key);
+                    }
                 }
                 
                 // Cleanup
@@ -618,7 +645,7 @@ pub fn parser (file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error> {
                 value_of_pair.clear();
 
                 continue;
-            }                            
+            }            
         }    
 
         i = i + 1;
