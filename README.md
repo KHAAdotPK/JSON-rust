@@ -10,31 +10,46 @@ This library uses a custom recursive linked-list data structure to represent JSO
 - ✅ Full support for core JSON types:
   - `String`
   - `Number`
-  - ~~`Boolean`~~
-  - ~~`Null`~~
+  - `Boolean`
+  - `Null`
   - `Object`
   - `Array`
-- ✅ Recursive parsing for deeply nested JSON structures
+- ✅ Recursive parsing for deeply nested JSON structures (nested objects/arrays with arbitrary depth)
+- ✅ Mixed-type for arrays/objects
 - ✅ Linked list–based internal representation
-- ✅ Modular code with separate tokenizer, parser, and data model
 - ✅ No external JSON libraries — fully handwritten!
-- ✅ Supports inspection and traversal of the parsed structure
+
+### **Current Limitations**:
+- No Unicode/escape character support
+- No error handling for malformed JSON
+- No validation of number formats
+- No support for scientific notation
+- Duplicate keys are allowed
 
 ---
 
-## 🧠 How It Works
+### 🧠 How It Works (Implementation of core functions)
 
-This parser is designed to read a JSON file and transform its contents into a custom, navigable tree structure built with Rust. The core of the library revolves around two primary structs: `JsonObject` and `Key`. The entire JSON file is parsed into a single root `JsonObject`, which acts as the entry point to the data.
+#### `parser(file_name: &str) -> Result<Option<Box<JsonObject>>, io::Error>`
+The main entry point that:
+- Reads a JSON file line by line
+- Orchestrates the parsing process
+- Handles top-level key-value pairs
+- Delegates complex structures to `helper_for_object_and_array_types`
 
-The parser operates by reading the file line by line and using regular expressions to identify the distinct components of the JSON syntax. It recognizes keys, values, and structural elements like `{`, `}`, `[`, and `]`. This approach allows it to handle complex, nested structures that span multiple lines.
+#### `helper_for_object_and_array_types(line: &str, key: &mut Key)`
+Recursive helper that:
+- Processes nested objects/arrays using a state machine
+- Handles string/number/boolean/null values
+- Maintains parsing context through mutable state
 
-Here's how JSON elements are represented in the parsed structure:
+#### Here's how JSON elements are represented in the parsed structure:
 
 * **Objects (`{...}`)**: An object is represented as a linked list of `Key` nodes. Each `Key` in the list corresponds to a key-value pair within that object.
 * **Arrays (`[...]`)**: An array is represented by a parent `Key` with `value_type` set to `ArrayType`. This key's internal pointer (`ptr`) then points to a linked list of `Key` nodes, where each node represents an element of the array. For elements that are objects or values without an explicit key (like in an array of objects), the `Key`'s `name` field is empty.
 * **Key-Value Pairs**: Each key-value pair is parsed into a `Key` struct, which stores its `name`, its `value` as a string, and a `ValueType` enum (e.g., `StringType`, `NumberType`, `ObjectType`, `ArrayType`).
 
-A key aspect of the parser is its recursive nature. When it encounters the beginning of a nested object or array, it delegates the processing of that block to a specialized function that builds the sub-tree. This allows it to correctly interpret deeply nested data. However, it's worth noting that in its current implementation, an array of simple values (like numbers, e.g., `[255, 0, 0]`) is parsed into a single `Key` of `StringType` with the contents concatenated into the `value` field.
+A key aspect of the parser is its recursive nature. When it encounters the beginning of a nested object or array, it delegates the processing of that block to a specialized function that builds the sub-tree. This allows it to correctly interpret deeply nested data.
 
 ### Structure Overview
 
@@ -73,12 +88,12 @@ pub struct JsonObject {
 
 ---
 
-## 📁 Directory Structure
+### 📁 Directory Structure
 
 ```
 src/
 │
-├── constants.rs       # Constants for JSON parsing
+├── constants.rs       # Constants for JSON parsing~~
 ├── file_contents.rs   # File contents module
 ├── json.rs            # JSON parsing module (recursive descent)
 ├── json_objects.rs    # JSON objects and key definitions module, (data model)
@@ -86,7 +101,7 @@ src/
 ```
 ---
 
-## 🚀 Usage of JSON-rust crate
+### 🚀 Usage of JSON-rust crate
 For example say you are developing a program that needs to parse a JSON file and extract some information from it. You can use the JSON-rust crate to parse the JSON file and extract the information you need. The directory structure of program which uses JSON-rust crate is as follows:
 
 ```
@@ -95,9 +110,9 @@ json2png/
     │   ├── JSON-rust/                 # JSON-rust crate
     │   │   ├── src/
     │   │   └── Cargo.toml             # Cargo.toml file
-    │   └── src/
-    │       ├── main.rs                # Main module    
-    │       └── png.json               # JSON file, input file which will be parsed
+    ├──src/
+    │   ├── main.rs                    # Main module    
+    │   └── png.json                   # JSON file, input file which will be parsed
     └── Cargo.toml                     # Cargo.toml file
 ```
 
@@ -129,6 +144,17 @@ Given the following `png.json`:
 
 ```json
 {
+    "data": 
+    { 
+        "internal": [1, 2, 3, 4, 5, 6], 
+        [7, 8, 9], 
+        [10, 11, 12, 13, 14, 15]  
+    },
+    "salaray": 10000,
+    "paid": false, 
+    "image_data": [
+            [255, 204, 153], [255, 204, 153], [0, 0, 0], [255, 255, 255]
+    ],
     "name": "test.png",
     "chunks": [
         {
@@ -141,19 +167,57 @@ Given the following `png.json`:
                     "color_type": "rgb",
                     "compression_method": "deflate",
                     "filter_method": "adaptive",
-                    "interlace_method": "none"
-                }
-            ]
-        },
+                    "interlace_method": "none",
+                    "level1": {
+                        "level2": {
+                            "level3": [
+                                        {
+                                            "level4a": [
+                                                        {"level5": "deep"}
+                                             ],
+                                            "level4b": {}
+                                        }
+                            ]
+                        }
+                    }
+                },
+                "bonus_paid": true
+            ],
+            {
+                "empty_structures": { 
+                "empty_object": {}, 
+                "empty_array": [] 
+                },
+                "sparse_arrays": [1, , 3],
+                "trailing_commas": { "a": 1, },
+                "unquoted_keys": { key: "value" }
+            }
+            "bonus_paid": true
+        },        
         {
             "type": "idat",
             "data": [
                 {
                     "image_data": [255, 0, 0]
-                }
+                },
+                "bonus": 90000
             ]
-        }
-    ]
+        },        
+        "bonus_paid": true,
+        "number": 19999
+    ],
+    "mixed_array": [
+        null,
+        42,
+        "string",
+        true,
+        false,
+        {"key": "value"},
+        [1, 2, 3],
+        -3.14
+    ],
+    "bonus_paid": true,
+    "number": 10000
 }
 ```
 
@@ -223,203 +287,124 @@ fn main() -> Result<(), io::Error> {
 ### Output
 
 ```text
-JSON object: Some(
-    JsonObject {
-        ptr: Some(
-            Key {
-                name: "name",
-                value_type: StringType,
-                value: "test.png",
-                ptr: None,
-                n: 0,
-                next: Some(
-                    Key {
-                        name: "chunks",
-                        value_type: ArrayType,
-                        value: "",
-                        ptr: Some(
-                            Key {
-                                name: "",
-                                value_type: ObjectType,
-                                value: "",
-                                ptr: Some(
-                                    Key {
-                                        name: "type",
-                                        value_type: StringType,
-                                        value: "ihdr",
-                                        ptr: None,
-                                        n: 0,
-                                        next: Some(
-                                            Key {
-                                                name: "data",
-                                                value_type: ArrayType,
-                                                value: "",
-                                                ptr: Some(
-                                                    Key {
-                                                        name: "",
-                                                        value_type: ObjectType,
-                                                        value: "",
-                                                        ptr: Some(
-                                                            Key {
-                                                                name: "width",
-                                                                value_type: NumberType,
-                                                                value: "1300",
-                                                                ptr: None,
-                                                                n: 0,
-                                                                next: Some(
-                                                                    Key {
-                                                                        name: "height",
-                                                                        value_type: NumberType,
-                                                                        value: "1300",
-                                                                        ptr: None,
-                                                                        n: 0,
-                                                                        next: Some(
-                                                                            Key {
-                                                                                name: "bit_depth",
-                                                                                value_type: NumberType,
-                                                                                value: "8",
-                                                                                ptr: None,
-                                                                                n: 0,
-                                                                                next: Some(
-                                                                                    Key {
-                                                                                        name: "color_type",
-                                                                                        value_type: StringType,
-                                                                                        value: "rgb",
-                                                                                        ptr: None,
-                                                                                        n: 0,
-                                                                                        next: Some(
-                                                                                            Key {
-                                                                                                name: "compression_method",
-                                                                                                value_type: StringType,
-                                                                                                value: "deflate",
-                                                                                                ptr: None,
-                                                                                                n: 0,
-                                                                                                next: Some(
-                                                                                                    Key {
-                                                                                                        name: "filter_method",
-                                                                                                        value_type: StringType,
-                                                                                                        value: "adaptive",
-                                                                                                        ptr: None,
-                                                                                                        n: 0,
-                                                                                                        next: Some(
-                                                                                                            Key {
-                                                                                                                name: "interlace_method",
-                                                                                                                value_type: StringType,
-                                                                                                                value: "none",
-                                                                                                                ptr: None,
-                                                                                                                n: 0,
-                                                                                                                next: None,
-                                                                                                                prev: None,
-                                                                                                            },
-                                                                                                        ),
-                                                                                                        prev: None,
-                                                                                                    },
-                                                                                                ),
-                                                                                                prev: None,
-                                                                                            },
-                                                                                        ),
-                                                                                        prev: None,
-                                                                                    },
-                                                                                ),
-                                                                                prev: None,
-                                                                            },
-                                                                        ),
-                                                                        prev: None,
-                                                                    },
-                                                                ),
-                                                                prev: None,
-                                                            },
-                                                        ),
-                                                        n: 7,
-                                                        next: None,
-                                                        prev: None,
-                                                    },
-                                                ),
-                                                n: 1,
-                                                next: None,
-                                                prev: None,
-                                            },
-                                        ),
-                                        prev: None,
-                                    },
-                                ),
-                                n: 2,
-                                next: Some(
-                                    Key {
-                                        name: "",
-                                        value_type: ObjectType,
-                                        value: "",
-                                        ptr: Some(
-                                            Key {
-                                                name: "type",
-                                                value_type: StringType,
-                                                value: "idat",
-                                                ptr: None,
-                                                n: 0,
-                                                next: Some(
-                                                    Key {
-                                                        name: "data",
-                                                        value_type: ArrayType,
-                                                        value: "",
-                                                        ptr: Some(
-                                                            Key {
-                                                                name: "",
-                                                                value_type: ObjectType,
-                                                                value: "",
-                                                                ptr: Some(
-                                                                    Key {
-                                                                        name: "image_data",
-                                                                        value_type: StringType,
-                                                                        value: "255, 0, 0",
-                                                                        ptr: None,
-                                                                        n: 0,
-                                                                        next: None,
-                                                                        prev: None,
-                                                                    },
-                                                                ),
-                                                                n: 1,
-                                                                next: None,
-                                                                prev: None,
-                                                            },
-                                                        ),
-                                                        n: 1,
-                                                        next: None,
-                                                        prev: None,
-                                                    },
-                                                ),
-                                                prev: None,
-                                            },
-                                        ),
-                                        n: 2,
-                                        next: None,
-                                        prev: None,
-                                    },
-                                ),
-                                prev: None,
-                            },
-                        ),
-                        n: 2,
-                        next: None,
-                        prev: None,
-                    },
-                ),
-                prev: None,
-            },
-        ),
-        n: 2,
-    },
-)
+data: ObjectType
+    internal: ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+        : NumberType
+salaray: NumberType
+paid: BooleanType
+image_data: ArrayType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+name: StringType
+chunks: ArrayType
+    : ObjectType
+        type: StringType
+        data: ArrayType
+            : ObjectType
+                width: NumberType
+                height: NumberType
+                bit_depth: NumberType
+                color_type: StringType
+                compression_method: StringType
+                filter_method: StringType
+                interlace_method: StringType
+                level1: ObjectType
+                    level2: ObjectType
+                        level3: ArrayType
+                            : ObjectType
+                                level4a: ArrayType
+                                    : ObjectType
+                                        level5: StringType
+                                level4b: ObjectType
+            bonus_paid: BooleanType
+        : ObjectType
+            empty_structures: ObjectType
+                empty_object: ObjectType
+                empty_array: ArrayType
+            sparse_arrays: ArrayType
+                : NumberType
+                : NumberType
+            trailing_commas: ObjectType
+                a: NumberType
+            unquoted_keys: ObjectType
+                : StringType
+        bonus_paid: BooleanType
+    : ObjectType
+        type: StringType
+        data: ArrayType
+            : ObjectType
+                image_data: ArrayType
+                    : NumberType
+                    : NumberType
+                    : NumberType
+            bonus: NumberType
+    bonus_paid: BooleanType
+    number: NumberType
+mixed_array: ArrayType
+    : NullType
+    : NumberType
+    : StringType
+    : BooleanType
+    : BooleanType
+    : ObjectType
+        key: StringType
+    : ArrayType
+        : NumberType
+        : NumberType
+        : NumberType
+    : NumberType
+bonus_paid: BooleanType
+number: NumberType
+Processing node 0: data
+Processing node 1: salaray
+Processing node 2: paid
+Processing node 3: image_data
+Processing node 4: name
+Processing node 5: chunks
+Processing node 6: mixed_array
+Processing node 7: bonus_paid
+Processing node 8: number
 ```
 ---
 
 ## 🔧 Future Improvements
 
-- [ ] Add pretty-printer for JSON output
-- [ ] Add serialization (back to string from JsonObject)
-- [ ] Support UTF-8 escape sequences in strings
-- [ ] Add `from_str()` constructor for direct parsing
-- [ ] Performance improvements (switch to Vecs?)
-- [ ] Optional Serde interop
+- ~~[ ] Add pretty-printer for JSON output~~
+- ~~[ ] Add serialization (back to string from JsonObject)~~
+- ~~[ ] Support UTF-8 escape sequences in strings~~
+- ~~[ ] Add `from_str()` constructor for direct parsing~~
+- ~~[ ] Performance improvements (switch to Vecs?)~~
+- ~~[ ] Optional Serde interop~~
 
 ---
 
