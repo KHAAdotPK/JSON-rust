@@ -20,6 +20,46 @@ use std::{env, io, fs::File, io::Read, io::Write};
 use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::parser};
 //use png::{png::Png, png::PngChunk, png::PngChunkData, png::PngChunkData::PngChunkDataIHDR, png::PngChunkData::PngChunkDataIDAT, png::PngChunkData::PngChunkDataIEND};
 
+/*fn helper (node_stack: &mut Vec<&Box<Key>>, ptr: &Box<Key>) {
+
+    node_stack.push(ptr);    
+}*/
+
+fn helper<'a>(node_stack: &mut Vec<&'a Box<Key>>, mut ptr: &'a Box<Key>) {
+
+    //println!("Processing node: {}", ptr.get_name());
+    
+    //node_stack.push(ptr);
+    //ptr = node_stack.pop().unwrap();
+
+    loop {
+
+        println!("Processing node: {}", ptr.get_name());
+
+        if ptr.get_n() > 0 {
+
+            node_stack.push(ptr);
+
+            ptr = ptr.get_ptr().as_ref().unwrap();
+
+            helper(node_stack, ptr);
+
+            ptr = node_stack.pop().unwrap();
+        }
+        
+        match ptr.get_next() {
+
+            Some(next) => {
+
+                ptr = next;
+            },
+
+            None => break,
+        }
+    }
+
+}
+
 fn main() -> Result<(), io::Error> {
 
     // Get current directory and build path
@@ -51,11 +91,72 @@ fn main() -> Result<(), io::Error> {
 
     let json_path_very_simple_file = current_dir.join("src").join("test.json"); 
 
-    let parsed_json_of_very_simple_file   = parser (json_path_very_simple_file.to_str().unwrap());
+    let parsed_json_of_very_simple_file: Result<Option<Box<JsonObject>>, io::Error> = parser (json_path_very_simple_file.to_str().unwrap());
     //let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path_to_input_of_complex_example.to_str().unwrap());
-     
-    match /*json_object*/ /*parsed_json*/ /*parsed_json_for_simple_json*/ /*parsed_json_from_complex_json_file*/ parsed_json_of_very_simple_file {
+    
+    let mut node_stack: Vec<&Box<Key>> = Vec::new();
 
+    match parsed_json_of_very_simple_file {
+
+        Ok(Some(jobj)) => {
+
+            let mut ptr = jobj.get_ptr().as_ref().unwrap(); 
+
+            //helper(&mut node_stack);
+
+            loop {
+
+                // Process node here
+                println!("Processing node: {}", ptr.get_name());
+
+                if ptr.get_n() > 0 {
+                
+                    node_stack.push(ptr);
+                
+                    ptr = ptr.get_ptr().as_ref().unwrap();  
+                    
+                    helper(&mut node_stack, &ptr);
+
+                    ptr = node_stack.pop().unwrap();
+                }
+
+                /*if ptr.get_n() == 0 {
+
+                    break;                    
+                }*/
+
+                //let boxed_key = Box::new(Key::new("name".into(), ValueType::StringType, "John".into()));
+
+                //ptr = &boxed_key;
+
+                //println! ("Processing node: {}", ptr.get_name());
+
+                //ptr = node_stack.pop().unwrap();
+
+                match ptr.get_next() {
+
+                    Some(next) => {
+
+                        ptr = next;                            
+                    },
+
+                    None => break,
+                }                                
+            }
+
+        },
+        Ok(None) => {
+
+            
+        },
+        Err(e) => {
+
+            
+        }
+    }
+                        
+    //match /*json_object*/ /*parsed_json*/ /*parsed_json_for_simple_json*/ /*parsed_json_from_complex_json_file*/ parsed_json_of_very_simple_file {
+        /*
        Ok(Some(jobj)) => {
 
             jobj.pretty_print();
@@ -113,15 +214,68 @@ fn main() -> Result<(), io::Error> {
             // Option 3: Iterate through all nodes (simplest)
             loop {
 
-                println!("Processing node {}: {}", i, ptr.get_name());
-
                 //Process the node here  
-                
+                println!("Processing node {}: {}", i, ptr.get_name());
+                //println!("{}", ptr.get_value());
+                println!("Number of sub-nodes {}", ptr.get_n());
+                //let mut sub_ptr: &Box<Key> = ptr.get_ptr().as_ref().unwrap();
+                let mut j: usize = 0;
+
+                if ptr.get_n() > 0 {
+
+                    let mut sub_ptr: &Box<Key> = ptr.get_ptr().as_ref().unwrap();
+
+                    loop {
+                        
+                        // Process the sub-node here
+                        println!("--> Processing sub-node {}: {}", j, sub_ptr.get_name());
+                        println!("----> Number of sub-sub-nodes {}", sub_ptr.get_n());
+                        let mut k: usize = 0;
+
+                        if sub_ptr.get_n() > 0 {
+
+                            let mut sub_sub_ptr: &Box<Key> = sub_ptr.get_ptr().as_ref().unwrap();
+
+                            loop {
+
+                                // Process the sub-node here
+                                println!("----> Processing sub-sub-node {}: {}", k, sub_sub_ptr.get_name());
+                                println!("------> Number of sub-sub-sub-nodes {}", sub_sub_ptr.get_n());
+
+                                match sub_sub_ptr.get_next() {
+
+                                    Some(next) => {
+
+                                            sub_sub_ptr = next;
+
+                                            k += 1;
+                                    },
+
+                                    None => break,
+                                }
+                            }
+                        }
+
+                        match sub_ptr.get_next() {
+
+                            Some(next) => {
+
+                                    sub_ptr = next;
+
+                                    j += 1;
+                            },
+
+                            None => break,
+                        }
+                    }
+                }
+                                
                 match ptr.get_next() {
 
                     Some(next) => {
 
                         ptr = next;
+
                         i += 1;
                     },
 
@@ -143,6 +297,10 @@ fn main() -> Result<(), io::Error> {
 
             Ok(())
        },
-   }   
+       */
+   //}
+    
+    
+    Ok(())
 }
 

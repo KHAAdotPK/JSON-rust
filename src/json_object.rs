@@ -47,6 +47,14 @@ impl Key {
         }
     }
 
+    pub fn get_ptr(&self) -> &JsonKeyPtr {
+        &self.ptr
+    }
+
+    pub fn get_n(&self) -> usize {
+        self.n
+    }
+
     /// Returns a reference to the key's name.
     pub fn get_name(&self) -> &str {
         &self.name
