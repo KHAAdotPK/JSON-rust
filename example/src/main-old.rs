@@ -25,28 +25,38 @@ use json_rust::{json_object::{ValueType, Key, JsonKeyPtr, JsonObject}, json::par
     node_stack.push(ptr);    
 }*/
 
+/*
+    A depth-first traversal using a combination of recursion and iteration with a stack
+ */
 fn helper<'a>(node_stack: &mut Vec<&'a Box<Key>>, mut ptr: &'a Box<Key>) {
 
-    //println!("Processing node: {}", ptr.get_name());
-    
-    //node_stack.push(ptr);
-    //ptr = node_stack.pop().unwrap();
-
+    /*
+        - Loop through siblings at current level
+        - For each sibling: if it has children, recursively process all its children
+        - After recursion returns: continue to next sibling
+        - When no more siblings: return to parent level
+     */
     loop {
 
-        println!("Processing node: {}", ptr.get_name());
+        println!("--> Processing node: {}, n = {}", ptr.get_name(), ptr.get_n());
 
+        /* If the node has children then process them */
         if ptr.get_n() > 0 {
 
+            // Push parent node
             node_stack.push(ptr);
 
+            // Get first child
             ptr = ptr.get_ptr().as_ref().unwrap();
 
+            // Do the same for the child, if each child has a child of its own then do the same for that child, if not then stop processing and return             
             helper(node_stack, ptr);
 
+            // After returning pop the parent of the last child, now go get the sibling of this parent 
             ptr = node_stack.pop().unwrap();
-        }
+        } 
         
+        // Now go to the next sibling
         match ptr.get_next() {
 
             Some(next) => {
@@ -54,10 +64,9 @@ fn helper<'a>(node_stack: &mut Vec<&'a Box<Key>>, mut ptr: &'a Box<Key>) {
                 ptr = next;
             },
 
-            None => break,
+            None => break, // No more siblings, break the loop and return to parent of the parent
         }
     }
-
 }
 
 fn main() -> Result<(), io::Error> {
@@ -65,7 +74,7 @@ fn main() -> Result<(), io::Error> {
     // Get current directory and build path
     let current_dir = env::current_dir()?;
     //let json_path = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
-    //let json_path = current_dir.join("src").join("png.json");    
+    let json_path = current_dir.join("src").join("png.json");    
     //let json_path = current_dir.join("src").join("single_line_json_examples.json");
 
     //let json_path_to_input = current_dir.join("src").join("./../DOCUMENTS/single_line_json_examples.json"); 
@@ -76,7 +85,7 @@ fn main() -> Result<(), io::Error> {
 
     
         
-//    let json_object: Result<Option<Box<JsonObject>>, io::Error> = json_main(json_path.to_str().unwrap());
+    let json_object: Result<Option<Box<JsonObject>>, io::Error> = parser(json_path.to_str().unwrap());
 
 //    let json_object_single_line: Result<Option<Box<JsonObject>>, io::Error> = json_main_single_line_older(json_path_to_output.to_str().unwrap());
 
@@ -96,7 +105,7 @@ fn main() -> Result<(), io::Error> {
     
     let mut node_stack: Vec<&Box<Key>> = Vec::new();
 
-    match parsed_json_of_very_simple_file {
+    match parsed_json_of_very_simple_file /*json_object*/ {
 
         Ok(Some(jobj)) => {
 
@@ -106,8 +115,8 @@ fn main() -> Result<(), io::Error> {
 
             loop {
 
-                // Process node here
-                println!("Processing node: {}", ptr.get_name());
+                // Process node here                
+                println!("-> Processing node: {}, n = {}", ptr.get_name(), ptr.get_n());
 
                 if ptr.get_n() > 0 {
                 
@@ -119,19 +128,6 @@ fn main() -> Result<(), io::Error> {
 
                     ptr = node_stack.pop().unwrap();
                 }
-
-                /*if ptr.get_n() == 0 {
-
-                    break;                    
-                }*/
-
-                //let boxed_key = Box::new(Key::new("name".into(), ValueType::StringType, "John".into()));
-
-                //ptr = &boxed_key;
-
-                //println! ("Processing node: {}", ptr.get_name());
-
-                //ptr = node_stack.pop().unwrap();
 
                 match ptr.get_next() {
 
